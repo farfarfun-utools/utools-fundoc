@@ -535,6 +535,13 @@ Markdown 编辑是高频输入，不能每个按键都写库（每次 `put` 都�
   和「用户点了取消」长得一模一样，混在一起会把浏览器预览里的导出变成静默失败。
 - zip 自己写（`zip.ts`，store 模式不压缩）：引 JSZip 是 300KB 依赖换 60 行代码，而 Markdown
   的体量下 deflate 省的那点空间不值一个新依赖，store 本来就是 zip 标准的一部分。
+- **文件名按 UTF-8 存并置通用标志位 11**，否则中文名在解压工具里按本地代码页解释就是乱码。
+  这一项**不能用本机 `unzip` 验**：Debian/Ubuntu 的 unzip 带 iconv 补丁，无视标志位 11、
+  一律按 DOS 代码页（默认 CP866）解名字，而给它 `-O UTF-8` 绕过去更糟 —— 那选项是 Debian
+  自己加的，macOS 自带的 Info-ZIP 不认，只会打印用法并非零退出（mac 上构建就是这么挂的，
+  包本身一点问题没有）。所以 `tests/zip.test.ts` 里走 unzip 的用例条目名一律 ASCII，只验
+  CRC、内容字节、目录条目和条目数；中文名交给 python 的 `zipfile`（它认标志位 11）单独验。
+  同理用 `unzip -Z` 而不是 `zipinfo` 命令：等价，但少一个二进制依赖，`skipIf` 才真的管得住。
 
 ### 8.3 打印 / 存 PDF：判据是 DOM，不是秒表
 
