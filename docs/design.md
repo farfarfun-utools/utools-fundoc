@@ -492,7 +492,7 @@ Markdown 编辑是高频输入，不能每个按键都写库（每次 `put` 都�
 `lib/search.ts` 同时被应用内的搜索面板（`Ctrl/⌘+Shift+P`）和 `preload.js` 的 `onMainPush`
 （uTools 主搜索框直搜）使用。preload 是 CommonJS、跑在 Node 侧，没法 import TS 模块，所以构建
 时由 `vite.preload.config.ts` 把它单独打成 `utools/search-core.cjs`。**约束：这个文件不能有任何
-运行时 import**，它得是自包含的。`utools/build.sh` 里专门断言这个产物存在 —— 漏了的话插件界面
+运行时 import**，它得是自包含的。`build.sh` 里专门断言这个产物存在 —— 漏了的话插件界面
 照常能开，只有主输入框一条结果都搜不出来，很难发现。
 
 两边共用而不是各写一份，是因为两份打分逻辑的排序迟早不一致：用户在主搜索框和插件里搜同一个词
@@ -578,11 +578,13 @@ Promise 落地时公式往往还没渲染。
 对齐同族项目（`utools-funotp` / `utools-funchat`）的约定：
 
 ```
-utools/                  uTools 清单、预加载脚本、图标、构建脚本
+build.sh                 唯一构建入口（同族约定：放仓库根，utools/ 里不再放第二份）
+utools/                  uTools 清单、预加载脚本、图标
   plugin.json
   preload.js
   logo.png
-  build.sh
+  search.png
+  search-core.cjs        ← 由 vite.preload.config.ts 从 src/lib/search.ts 打出，不进版本管理
   dist/                  ← vite 产物，不进版本管理
 public/
   vditor/dist/           ← 由 scripts/sync-vditor.mjs 从 node_modules 白名单同步
