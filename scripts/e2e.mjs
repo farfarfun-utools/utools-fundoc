@@ -88,6 +88,15 @@ async function serve(root) {
 
 // ───────────────────────────── 检查项框架 ─────────────────────────────
 
+/**
+ * 大纲里的标题文本。
+ *
+ * 取 `.outline-text` 而不是整行的 textContent：开了标题编号之后行里还有个
+ * `.outline-number`，整行取出来是「1.1 公式」，拿它和标题比永远不等。
+ */
+const OUTLINE_TEXTS =
+  '[...document.querySelectorAll(".outline-row .outline-text")].map((el) => el.textContent.trim())';
+
 const results = [];
 
 /**
@@ -203,11 +212,45 @@ async function main() {
     });
 
     await check('大纲列出了正文标题', async () => {
-      const texts = await session.waitForExpression(
-        '[...document.querySelectorAll(".outline-row")].map((row) => row.textContent.trim())',
-      );
+      const texts = await session.waitForExpression(OUTLINE_TEXTS);
       assert(texts.length >= 4, `大纲只有 ${texts.length} 条`);
       assert(texts.includes('公式'), `大纲里没有「公式」：${texts.join(' / ')}`);
+    });
+
+    await check('标题自动编号：大纲和正文都标上了', async () => {
+      // 欢迎文档是 # / ## / ## / ## 四个标题。
+      const numbers = await session.evaluate(
+        '[...document.querySelectorAll(".outline-number")].map((el) => el.textContent.trim())',
+      );
+      assert(
+        JSON.stringify(numbers) === JSON.stringify(['1', '1.1', '1.2', '1.3']),
+        `大纲编号是 ${JSON.stringify(numbers)}`,
+      );
+
+      const attrs = await session.evaluate(`
+        [...document.querySelectorAll('.vditor-reset h1, .vditor-reset h2')]
+          .map((el) => el.getAttribute('data-fundoc-number'))
+      `);
+      assert(
+        JSON.stringify(attrs) === JSON.stringify(['1', '1.1', '1.2', '1.3']),
+        `正文标题上的编号是 ${JSON.stringify(attrs)}`,
+      );
+      // 数字必须是 CSS 生成的，不能是真塞进去的文本节点 —— 后者会被 getValue() 带进正文。
+      // ir 模式的标题里本来就有 Vditor 自己的 `## ` 标记文本（平时用 CSS 藏着），
+      // 去掉那段之后剩下的必须正好是标题，不能多出任何数字。
+      const text = await session.evaluate(
+        'document.querySelector(".vditor-reset h2")?.textContent.trim()',
+      );
+      assert(
+        text?.replace(/^#{1,6}\s*/, '') === '公式',
+        `标题里多了东西：「${text}」`,
+      );
+      // 属性在、CSS 规则没匹配上，屏幕上就什么都看不见。问浏览器 ::before 算出来是什么，
+      // 这是唯一能证明「用户真的看到了编号」的判据。
+      const generated = await session.evaluate(
+        'getComputedStyle(document.querySelector(".vditor-reset h2"), "::before").content',
+      );
+      assert(generated.includes('1.1'), `::before 没画出编号：${generated}`);
     });
 
     await check('全部资源都来自本地，没有回落 CDN', () => {
@@ -268,6 +311,43 @@ async function main() {
       assert(text.includes('\\frac{-b \\pm'), '公式被改写了');
     });
 
+    await check('编号没有混进 Markdown 源码', async () => {
+      // 正文里的数字是 CSS 生成内容，但 ir / wysiwyg 模式下 getValue() 是让 lute 从 DOM
+      // 反解出 Markdown 的 —— 万一它把我们贴在标题上的 data-fundoc-number 一起带出来，
+      // 用户的正文就被污染了，而且是存进数据库的那份。所以真去改一次标题（最有可能出事的
+      // 就是带属性的那个元素），让内容走一遍 getValue，再导出来看到底存了什么。
+      await session.evaluate(`
+        (() => {
+          const editable = document.querySelector('.vditor-ir .vditor-reset');
+          const heading = editable.querySelector('h1');
+          editable.focus();
+          const range = document.createRange();
+          range.selectNodeContents(heading);
+          range.collapse(false);
+          const selection = getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          return true;
+        })()
+      `);
+      await session.send('Input.insertText', { text: ' 自测' });
+      // 改完才算真跑过 getValue。标题同步会把文档名也改成这个，下面按新名字等文件。
+      await session.waitForExpression(
+        'document.querySelector(".doc-title")?.value === "欢迎使用 FunDoc 自测"',
+      );
+
+      await session.evaluate('document.querySelector(\'.doc-head .icon-btn[title^="导出"]\').click()');
+      const file = await waitFor(
+        () => fs.readdirSync(downloads).find((name) => name.includes('自测')),
+        { label: '改动后导出的 .md', timeout: 20_000 },
+      );
+      const text = fs.readFileSync(path.join(downloads, file), 'utf8');
+      assert(text.startsWith('# 欢迎使用 FunDoc 自测'), `导出的开头是「${text.slice(0, 40)}」`);
+      assert(!text.includes('data-fundoc-number'), '编号属性被 lute 反解进了 Markdown');
+      assert(!text.includes('<h1'), '标题变成了 HTML，不再是 ATX 写法');
+      assert(text.includes('\n## 公式'), '其他标题的写法被改动了');
+    });
+
     await check('打印前把公式等渲染完了', async () => {
       // window.print 在无头浏览器里会直接返回，用它当钩子抓打印容器的内容。
       await session.evaluate(`
@@ -284,6 +364,8 @@ async function main() {
       assert(html.includes('katex'), '打印内容里没有渲染好的公式');
       assert(html.includes('data-math'), '公式还没渲染完就触发了打印');
       assert(html.includes('欢迎使用 FunDoc'), '打印内容里没有正文');
+      // 屏幕上有章节号，印出来的 PDF 里也得有。
+      assert(html.includes('data-fundoc-number="1.1"'), '打印内容里的标题没有编号');
       // 打印容器事后要清掉，不然它会一直挂在 body 上。
       await session.waitForExpression('!document.querySelector(".fundoc-print-root")');
       assert(
@@ -371,9 +453,7 @@ async function main() {
     await check('分屏模式下点大纲能滚到对应标题', async () => {
       // 先回到顶部，这样「滚了」本身也是检查的一部分。
       await scrollTo(session, 'textarea.vditor-sv', 0);
-      const texts = await session.evaluate(
-        '[...document.querySelectorAll(".outline-row")].map((row) => row.textContent.trim())',
-      );
+      const texts = await session.evaluate(OUTLINE_TEXTS);
       const index = texts.indexOf('Sync C');
       assert(index >= 0, `大纲里没有 Sync C：${texts.join(' / ')}`);
 

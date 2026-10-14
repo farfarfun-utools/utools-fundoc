@@ -74,6 +74,22 @@ async function clean(): Promise<void> {
         </div>
 
         <div class="field">
+          <label class="field-label">
+            <span>标题自动编号</span>
+            <button
+              class="switch"
+              :class="{ on: state.settings.headingNumber }"
+              @click="state.settings.headingNumber = !state.settings.headingNumber"
+            />
+          </label>
+          <p class="field-hint">
+            给大纲和正文里的标题标上 1 / 1.1 / 1.2 这样的章节号，打印的 PDF 里也有。
+            数字只画在屏幕上，不会写进 Markdown，导出的 .md 还是原样。
+            正文里已经手写了编号的文档会显示两组数字，那就关掉它。
+          </p>
+        </div>
+
+        <div class="field">
           <div class="field-label">
             <span>自动保存延迟</span>
             <span class="doc-state">{{ state.settings.autoSaveDelay }} ms</span>

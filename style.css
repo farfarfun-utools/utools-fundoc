@@ -228,6 +228,37 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .outline-row:hover { color: var(--primary-strong); background: var(--row-hover); }
 .outline-row.level-1 { color: var(--text-strong); font-weight: 600; }
 .outline-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 章节号不参与省略：标题再长也先把编号显示完，否则一串「1.2…」毫无意义。 */
+.outline-number {
+  flex: 0 0 auto;
+  margin-right: 6px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.outline-row:hover .outline-number { color: inherit; }
+
+/* 正文里的标题编号。数字是生成内容，Markdown 源码里没有它（lib/heading-number.ts）。
+ *
+ * 属性选择器刻意写两遍：ir 和 wysiwyg 模式下 Vditor 自己占着标题的 ::before 画左侧那个
+ * 「H1 / H2」级别角标（index.css 里 `.vditor-ir .vditor-reset > h2:before`，权重 0-2-1），
+ * 一个 ::before 只能有一份内容，不提权就是它赢。重复一次属性把权重抬到 0-3-0，比类数
+ * 少一个的它高，一条规则同时压住两种模式；关掉编号时属性被摘掉，角标自己就回来了。
+ *
+ * float / margin / font 也得显式写回来 —— 那些是角标的样式，不覆盖的话数字会被甩到
+ * 左边空白里，还是 0.85rem 的小字。 */
+.vditor-reset [data-fundoc-number][data-fundoc-number]::before {
+  content: attr(data-fundoc-number);
+  float: none;
+  margin: 0 .4em 0 0;
+  padding: 0;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  /* 这段在 contenteditable 里面：不许选中、不许点中，否则点一下数字光标会掉到
+     奇怪的位置，而复制整段时也可能把章节号一起带走。 */
+  user-select: none;
+  pointer-events: none;
+}
 
 /* ── 编辑区 ───────────────────────────────────────── */
 .doc-head {

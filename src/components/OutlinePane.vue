@@ -7,7 +7,7 @@ import { useDocs } from '../composables/useDocs';
 
 const emit = defineEmits<{ jump: [index: number] }>();
 
-const { outline } = useDocs();
+const { state, outline, outlineNumbers } = useDocs();
 
 /** 一级标题顶格，往下每级缩进 12px，最深 6 级。 */
 function indent(level: number): string {
@@ -34,7 +34,10 @@ function indent(level: number): string {
         :title="item.text"
         @click="emit('jump', index)"
       >
-        <span>{{ item.text }}</span>
+        <span v-if="state.settings.headingNumber" class="outline-number">
+          {{ outlineNumbers[index] }}
+        </span>
+        <span class="outline-text">{{ item.text }}</span>
       </button>
     </div>
   </aside>

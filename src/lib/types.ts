@@ -65,6 +65,8 @@ export type Settings = {
   theme: ThemeMode;
   /** 正文首个一级标题变化时，是否同步更新节点名。 */
   syncTitleFromHeading: boolean;
+  /** 大纲与正文里的标题是否自动编号。只影响显示，不写进 Markdown（lib/heading-number.ts）。 */
+  headingNumber: boolean;
   /** 自动保存防抖毫秒数。 */
   autoSaveDelay: number;
   /** 大纲面板是否展开。 */
@@ -78,6 +80,7 @@ export const DEFAULT_SETTINGS: Settings = {
   mode: 'ir',
   theme: 'system',
   syncTitleFromHeading: true,
+  headingNumber: true,
   autoSaveDelay: 800,
   outlineVisible: true,
   treeVisible: true,

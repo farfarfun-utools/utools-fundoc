@@ -35,6 +35,7 @@ import {
 } from '../lib/asset';
 import { buildExportPlan, type ExportIO } from '../lib/export';
 import { deliverPlan } from '../lib/export-sink';
+import { numberHeadings } from '../lib/heading-number';
 import { printDocument } from '../lib/print';
 import { nodeIdFromFeatureCode, reconcileFeatures, unregisterFeature } from '../lib/keyword';
 import { firstHeading, parseOutline } from '../lib/outline';
@@ -131,6 +132,11 @@ const activeMeta = computed(() =>
   state.activeNodeId ? (state.metas.find((m) => m.nodeId === state.activeNodeId) ?? null) : null,
 );
 const outline = computed(() => parseOutline(state.markdown));
+// 编号单独算而不是塞进 OutlineItem：parseOutline 的结果还被标题兜底关键词和搜索用着，
+// 那两处不关心编号。开关关掉时也不必白算一遍。
+const outlineNumbers = computed(() =>
+  state.settings.headingNumber ? numberHeadings(outline.value.map((item) => item.level)) : [],
+);
 /** 当前该用暗色还是亮色。设置里选了固定值就用固定值，否则跟随系统。 */
 const dark = computed(() =>
   state.settings.theme === 'system' ? state.systemDark : state.settings.theme === 'dark',
@@ -557,7 +563,10 @@ async function printActive(): Promise<void> {
     return;
   }
 
-  const outcome = await printDocument(meta.name, state.markdown);
+  // 编号跟着界面走：屏幕上看见的章节号，印出来的 PDF 里也得是同一套。
+  const outcome = await printDocument(meta.name, state.markdown, {
+    headingNumber: state.settings.headingNumber,
+  });
   // 打印一律按亮色渲染，而 Vditor 的 setContentTheme 改的是全局那个 <link> ——
   // 暗色模式下打印完编辑器会留在亮色内容主题上。成功失败都要让编辑器重贴一次主题。
   state.themeEpoch += 1;
@@ -730,6 +739,7 @@ export function useDocs() {
     activeMeta,
     activePath,
     outline,
+    outlineNumbers,
     dark,
     initialize,
     reload,

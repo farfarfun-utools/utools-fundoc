@@ -10,6 +10,7 @@
 // 所以 Promise 落地时公式往往还没渲染。
 import Vditor from 'vditor';
 import { toRenderable } from './asset';
+import { applyHeadingNumbers } from './heading-number';
 import { injectVditorStyle, vditorBase } from './vditor';
 
 /** 打印容器的 class。style.css 里的 @media print 靠它决定印什么。 */
@@ -54,9 +55,14 @@ export type PrintOutcome = { ok: true; mathTimedOut: boolean } | { ok: false; me
  *
  * @param title 文档标题。会临时设成 `document.title` —— 浏览器拿它当 PDF 的默认文件名。
  * @param markdown 正文，存库形态（图片是 `fundoc-asset://`）。
+ * @param options.headingNumber 标题是否自动编号，跟界面上的设置保持一致。
  * @returns 是否成功，以及公式是否等超时了（超时要提示用户）。
  */
-export async function printDocument(title: string, markdown: string): Promise<PrintOutcome> {
+export async function printDocument(
+  title: string,
+  markdown: string,
+  { headingNumber = false }: { headingNumber?: boolean } = {},
+): Promise<PrintOutcome> {
   if (typeof window === 'undefined' || typeof window.print !== 'function') {
     return { ok: false, message: '当前环境不支持打印' };
   }
@@ -91,6 +97,9 @@ export async function printDocument(title: string, markdown: string): Promise<Pr
       theme: { current: 'light', path: `${cdn}/dist/css/content-theme` },
       icon: 'ant',
     });
+
+    // 编号贴在渲染完的 DOM 上（`::before` 生成内容是会打印的），正文源码仍然不含数字。
+    applyHeadingNumbers(container, headingNumber);
 
     const mathDone = await waitForMath(container);
     // 字体没加载完就打印，KaTeX 的字形会按回退字体量尺寸，公式的上下标全是歪的。

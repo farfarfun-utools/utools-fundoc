@@ -3,6 +3,7 @@
 // 离线化（cdn 指向插件内副本、主样式要自己挂）的细节在 lib/vditor.ts 里。
 import Vditor from 'vditor';
 import { assetUrl, storeAsset, toRenderable } from '../lib/asset';
+import { applyHeadingNumbers } from '../lib/heading-number';
 import { installScrollSync, type ScrollSync } from '../lib/scroll-sync';
 import { injectVditorStyle, vditorBase } from '../lib/vditor';
 import type { EditorMode, Settings } from '../lib/types';
@@ -16,6 +17,8 @@ export type EditorHandle = {
   applyTheme(dark: boolean): void;
   /** 滚动到第 n 个标题（n 与 parseOutline 的下标一致）。 */
   scrollToHeading(index: number): void;
+  /** 重贴标题编号。设置里的开关变了时调用 —— 那不引起 DOM 变化，观察器看不见。 */
+  refreshHeadingNumbers(): void;
   focus(): void;
   destroy(): void;
 };
@@ -56,6 +59,21 @@ export function createEditor(
   let queued: string | null = null;
   /** 分屏模式的滚动同步。其他模式下是 null。 */
   let scrollSync: ScrollSync | null = null;
+
+  // ── 标题编号 ──
+  //
+  // 盯 DOM 变化重贴，而不是挂在 input 回调上：Vditor 重排正文的入口不止打字一条
+  // （setValue、切「仅预览」、粘贴、撤销都会重建节点），逐个去接总会漏。
+  // 只订阅 childList —— 我们自己写的是属性，不会把自己再激活一次。
+  let numberFrame = 0;
+  const refreshNumbers = () => applyHeadingNumbers(element, settings.headingNumber);
+  const observer = new MutationObserver(() => {
+    if (numberFrame) return;
+    numberFrame = requestAnimationFrame(() => {
+      numberFrame = 0;
+      refreshNumbers();
+    });
+  });
 
   // 显式标注类型：下面 upload.handler 的闭包里要用到 vditor 自己，
   // 不标注的话 TS 会因为「初始化表达式引用了自身」把它推成 any（TS7022）。
@@ -102,6 +120,8 @@ export function createEditor(
       // 在 after 里安装，而不是 createEditor 返回后：分屏的 textarea 和预览区都是
       // Vditor 构造过程中建的，只有这时候才查得到。
       if (settings.mode === 'sv') scrollSync = installScrollSync(element, () => vditor.getValue());
+      observer.observe(element, { childList: true, subtree: true });
+      refreshNumbers();
       if (queued !== null) {
         const pending = queued;
         queued = null;
@@ -141,10 +161,17 @@ export function createEditor(
       );
     },
     scrollToHeading: (index) => scrollToHeading(element, index),
+    refreshHeadingNumbers: () => {
+      refreshNumbers();
+      // 编号是标题前的生成内容，标题换行与否会变 —— 分屏的锚点测量得重做一次。
+      scrollSync?.invalidate();
+    },
     focus: () => ready && vditor.focus(),
     destroy: () => {
       ready = false;
       // 先摘监听再 destroy：Vditor 会把 DOM 整个拆掉，之后 mirror 就没人回收了。
+      observer.disconnect();
+      if (numberFrame) cancelAnimationFrame(numberFrame);
       scrollSync?.destroy();
       scrollSync = null;
       vditor.destroy();

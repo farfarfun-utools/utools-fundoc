@@ -61,6 +61,12 @@ watch(
 
 watch(dark, (value) => editor?.applyTheme(value));
 
+// 开关标题编号不改 DOM 结构，编辑器里的观察器看不见，得推一把。
+watch(
+  () => state.settings.headingNumber,
+  () => editor?.refreshHeadingNumbers(),
+);
+
 // 打印把 Vditor 的全局内容主题切成了亮色，这里重贴一次。
 watch(
   () => state.themeEpoch,
