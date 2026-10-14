@@ -1,0 +1,82 @@
+# ---- farfarfun 组织约定 (SPEC §10) ----
+# 服务脚本的运行时文件：日志 / PID / lock
+.run/
+logs/
+*.log
+
+# 本地数据库与压缩包不进版本管理，确需版本化走 Git LFS
+*.db
+*.sqlite
+*.sqlite3
+*.rar
+*.7z
+
+# 构建产物（无前导斜杠，任意层级都匹配，含 utools/dist/）
+dist/
+build/
+
+# 编辑器 / IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# 凭据：绝不提交
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+
+# ---- 前端 / uTools 插件 ----
+# SPEC §13.4: utools/ 目录本身要提交（plugin.json / preload.js / logo.png 是源文件），
+# 只有 utools/dist/ 是构建产物。上面的 dist/ 已覆盖，这里显式写一遍避免被误改。
+utools/dist/
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+.pnpm-store/
+.vite/
+.turbo/
+*.tsbuildinfo
+pnpm-debug.log*
+npm-debug.log*
+yarn-error.log*
+
+# ---- 本仓库特有 ----
+# preload.js 用的搜索内核，由 vite.preload.config.ts 从 src/lib/search.ts 打出来。
+# 源文件是那份 TS，这个 .cjs 是构建产物 —— 提交它等于让同一套打分逻辑有两个版本。
+utools/search-core.cjs
+
+# Vditor 的离线资源由 scripts/sync-vditor.mjs 从 node_modules 白名单拷出来，
+# 是构建产物而不是源文件。提交它只会让每次升级 Vditor 都在 diff 里甩进几 MB 二进制。
+# 注意上面的 `dist/` 规则已经能匹配到 public/vditor/dist/，这里显式写全目录更不易误改。
+public/vditor/
+
+# ---- AI 编码助手 ----
+# 只忽略本地状态；团队有意共享的 agent / 命令 / 规则定义仍然版本化。
+# 必须写 `dir/*` 而不是 `dir/`：父目录被整体排除后 git 不会下探，
+# 下面的 `!` 取消规则就永远不会生效。
+.claude/*
+!.claude/agents/
+!.claude/commands/
+!.claude/skills/
+!.claude/settings.json
+.codex/*
+!.codex/prompts/
+.cursor/*
+!.cursor/agents/
+!.cursor/rules/
+
+# 其余助手：目前没有共享内容，整体忽略
+.aider*
+.gemini/
+.continue/
+.windsurf/
+.roo/
+.cline/
+.specstory/
+CLAUDE.local.md
+AGENTS.local.md

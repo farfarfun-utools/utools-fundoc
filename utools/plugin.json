@@ -1,0 +1,52 @@
+{
+  "pluginName": "FunDoc 文档",
+  "version": "0.1.0",
+  "description": "本地 Markdown 文档管理，支持 LaTeX 公式、多级目录与跨设备同步",
+  "author": "farfarfun",
+  "main": "dist/index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "height": 600
+  },
+  "features": [
+    {
+      "code": "fundoc",
+      "description": "管理 Markdown 文档，支持 LaTeX 公式",
+      "explain": "管理 Markdown 文档，支持 LaTeX 公式",
+      "icon": "logo.png",
+      "cmds": ["FunDoc", "文档", "笔记", "markdown", "md"]
+    },
+    {
+      "code": "fundoc-search",
+      "description": "搜索文档标题与关键词",
+      "explain": "搜索文档标题与关键词",
+      "icon": "search.png",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "搜索文档",
+          "minLength": 2,
+          "maxLength": 40
+        }
+      ],
+      "mainPush": true
+    },
+    {
+      "code": "fundoc-import",
+      "description": "把 Markdown 文件导入 FunDoc",
+      "explain": "把 Markdown 文件导入 FunDoc",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "导入到 FunDoc",
+          "fileType": "file",
+          "match": "/\\.(md|markdown)$/i",
+          "minLength": 1
+        }
+      ]
+    }
+  ],
+  "platform": ["darwin", "win32", "linux"]
+}

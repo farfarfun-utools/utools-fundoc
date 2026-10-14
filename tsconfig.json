@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // utools-api-types 把官方声明注入全局 `utools`。不要在项目里再写 `declare var utools: any`
+    // 之类的兜底——那会盖掉官方声明，让所有接口名都无人校对（funchat 的 setExpendHeight
+    // 拼写错误就是这么活了很久的）。
+    "types": ["vite/client", "node", "utools-api-types"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.vue",
+    "tests/**/*.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "scripts/**/*.mjs"
+  ]
+}
