@@ -152,23 +152,37 @@ async function main() {
     downloadPath: downloads,
   });
 
+  // 「资源挂住时…」那项检查会故意把这个地址扣住不放，再由期限把它 abort 掉。
+  const STALL_URL = `${site.origin}/__stall__.css`;
+
   // ── 收集页面侧的坏消息 ──
   const consoleErrors = [];
+  const consoleWarnings = [];
   const exceptions = [];
   const requests = [];
+  /** requestId → 地址。loadingFailed 事件里只有 id，要靠它认出故意扣住的那个请求。 */
+  const requestUrls = new Map();
 
   session.on('Runtime.consoleAPICalled', (event) => {
-    if (event.type !== 'error') return;
-    consoleErrors.push(event.args.map((arg) => arg.value ?? arg.description ?? arg.type).join(' '));
+    const text = () =>
+      event.args.map((arg) => arg.value ?? arg.description ?? arg.type).join(' ');
+    if (event.type === 'error') consoleErrors.push(text());
+    // warning 不算失败：代码里「结果有瑕疵但能继续」的路径就是走 console.warn 的。
+    else if (event.type === 'warning') consoleWarnings.push(text());
   });
   session.on('Runtime.exceptionThrown', (event) => {
     const detail = event.exceptionDetails;
     exceptions.push(detail.exception?.description ?? detail.text);
   });
-  session.on('Network.requestWillBeSent', (event) => requests.push(event.request.url));
-  session.on('Network.loadingFailed', (event) =>
-    consoleErrors.push(`请求失败：${event.errorText}`),
-  );
+  session.on('Network.requestWillBeSent', (event) => {
+    requests.push(event.request.url);
+    requestUrls.set(event.requestId, event.request.url);
+  });
+  session.on('Network.loadingFailed', (event) => {
+    // 故意扣住、到点被 abort 的那个请求不算坏消息 —— 它正是被测行为本身。
+    if (requestUrls.get(event.requestId) === STALL_URL) return;
+    consoleErrors.push(`请求失败：${event.errorText}`);
+  });
 
   // 监听都挂好了才真正打开页面，这样一个请求都不会漏。
   await navigate();
@@ -442,6 +456,64 @@ async function main() {
       );
       assert(notice.startsWith('已复制为图片'), `提示是「${notice}」`);
       assert(/1600×\d+/.test(notice), `提示里没有像素尺寸：「${notice}」`);
+    });
+
+    await check('资源挂住时出图照样能收场，工具栏不会永久禁用', async () => {
+      // 这一项就是「偶尔会卡死」的回归守卫。出图要把页面上每张样式表都 fetch 回来内联进
+      // SVG（lib/snapshot.ts），而这些 fetch 过去是没有期限的 —— 用 CDP 扣住其中一个请求
+      // 不放，Promise.all 就永远不落地：busy 标志清不掉、按钮永久禁用、提示四秒后自己
+      // 消失，现象正是「插件卡死了而且什么都不报」。
+      //
+      // 这里要花十秒左右（RESOURCE_TIMEOUT），不是卡住了。
+      session.on('Fetch.requestPaused', () => {
+        // 故意既不 continueRequest 也不 failRequest：模拟「请求发出去了但永远不回」。
+      });
+      await session.send('Fetch.enable', {
+        patterns: [{ urlPattern: '*__stall__.css*', requestStage: 'Request' }],
+      });
+
+      // media="print" 是刻意的：这张表同样会被 documentCss() 收进来，但不参与渲染阻塞，
+      // 所以挂住它只影响出图这条路，不会连带把整页的首帧和 document.fonts.ready 一起拖住。
+      await session.evaluate(`
+        (() => {
+          const link = document.createElement('link');
+          link.id = 'fundoc-stall-probe';
+          link.rel = 'stylesheet';
+          link.media = 'print';
+          link.href = ${JSON.stringify(STALL_URL)};
+          document.head.append(link);
+          return true;
+        })()
+      `);
+
+      try {
+        await session.evaluate(
+          'document.querySelector(\'.doc-head .icon-btn[title="复制为图片"]\').click(); true',
+        );
+        const notice = await session.waitForExpression(
+          '(() => { const el = document.querySelector(".banner-notice span"); const t = el && el.textContent.trim(); return t && !t.startsWith("正在生成") ? t : null; })()',
+          { timeout: 40_000 },
+        );
+        // 少一张样式表只是「图里某处样式不全」，不该把整次导出判死 —— 所以期望的是成功，
+        // 而且是在期限内收场的成功。
+        assert(notice.startsWith('已复制为图片'), `提示是「${notice}」`);
+        assert(
+          consoleWarnings.some((line) => line.includes('读不到样式表')),
+          `没有「读不到样式表」的告警，说明那个请求根本没被取，这项没测到东西：\n${consoleWarnings.join('\n')}`,
+        );
+        assert(
+          await session.evaluate(
+            '!document.querySelector(\'.doc-head .icon-btn[title="复制为图片"]\').disabled',
+          ),
+          '出图结束了但按钮还是禁用的（busy 没清掉）',
+        );
+        await session.waitForExpression('!document.querySelector(".fundoc-shot-root")');
+      } finally {
+        await session.send('Fetch.disable');
+        await session.evaluate(
+          'document.getElementById("fundoc-stall-probe")?.remove(); true',
+        );
+      }
     });
 
     await check('Ctrl+Shift+M 能切到分屏模式', async () => {

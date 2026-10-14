@@ -33,6 +33,7 @@ import {
   removeAssets,
   toStorable,
 } from '../lib/asset';
+import { settleWithin, timeoutError } from '../lib/deadline';
 import { buildExportPlan, sanitizeSegment, type ExportIO } from '../lib/export';
 import { deliverBytes, deliverPlan } from '../lib/export-sink';
 import { numberHeadings } from '../lib/heading-number';
@@ -43,6 +44,14 @@ import { firstHeading, parseOutline } from '../lib/outline';
 import type { NodeMeta, NodeType, Settings } from '../lib/types';
 
 const EXPANDED_KEY = 'fundoc.ui.expanded';
+
+/**
+ * 出一张图的总期限。
+ *
+ * 比里面各步期限之和短：那些是单步上限，正常一篇长文全程也就一两秒。到这个点还没结果，
+ * 说明有一步挂住了，这时候「报错并把按钮放开」远好于继续等。
+ */
+const IMAGE_TIMEOUT = 45_000;
 
 const WELCOME = `# 欢迎使用 FunDoc
 
@@ -615,9 +624,15 @@ async function renderActiveImage(): Promise<{
   state.busy = true;
   notify('正在生成图片…');
   try {
-    const outcome = await snapshotMarkdown(state.markdown, {
-      headingNumber: state.settings.headingNumber,
-    });
+    // 兜一层总期限。里面每一步都已经各自带期限了（lib/deadline.ts），这层是防「漏了一步」：
+    // busy 只在 finally 里清，一旦有任何一个 await 永远不落地，工具栏就永久禁用、提示四秒后
+    // 自己消失 —— 现象就是「插件卡死了还不报错」。
+    // 迟到的结果不用管：snapshotMarkdown 自己在 finally 里收离屏容器，不会在页面上留东西。
+    const outcome = await settleWithin(
+      snapshotMarkdown(state.markdown, { headingNumber: state.settings.headingNumber }),
+      IMAGE_TIMEOUT,
+      { ok: false as const, message: timeoutError('生成图片', IMAGE_TIMEOUT).message },
+    );
     // 和打印同理：离屏渲染一律按亮色走，会把 Vditor 的全局内容主题带偏，成功失败都要让
     // 编辑器重贴一次主题。
     state.themeEpoch += 1;

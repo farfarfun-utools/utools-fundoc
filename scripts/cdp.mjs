@@ -38,6 +38,11 @@ export function findBrowser() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** 单条 CDP 命令的期限。给得宽：正常都是毫秒级，这个数只用来兜「永远不回复」。 */
+const COMMAND_TIMEOUT = 30_000;
+/** 探一次调试端口的期限。它卡住过（见 connect()），所以每次探测都得能自己放弃。 */
+const PROBE_TIMEOUT = 2_000;
+
 /**
  * 等某个条件成立。
  * @param probe 返回真值即成立，可以是异步的。
@@ -93,7 +98,17 @@ class Session {
   send(method, params = {}) {
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject, method });
+      // 必须带期限。上面那个 close 监听只管得了「浏览器挂了」，而它还有一种半死不活的状态：
+      // 进程在、连接开着，命令却永远不回复。那时整条命令挂死，没有任何输出可看。
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`CDP 命令超时：${method}`));
+      }, COMMAND_TIMEOUT);
+      const settle = (run) => (value) => {
+        clearTimeout(timer);
+        run(value);
+      };
+      this.pending.set(id, { resolve: settle(resolve), reject: settle(reject), method });
       this.socket.send(JSON.stringify({ id, method, params }));
     });
   }
@@ -237,11 +252,22 @@ export async function launch({ url, binary = findBrowser(), headless = true, dow
   /** 连上页面并把要用的域打开。失败时负责把浏览器收掉再把错误抛出去。 */
   async function connect() {
     // 页面 target 在端口就绪后还要一小会儿才出现。
+    //
+    // 每次探测都带 abort：headless Chromium 偶尔会在启动中途卡住 —— 端口听着、TCP 也接了，
+    // 但这个请求永远不回。node 的 fetch 没有默认超时，而 waitFor 只在两次探测**之间**看期限，
+    // 于是整条命令挂死（实测两次，一次十分钟一次十一分钟，都是连一行检查结果都没打出来）。
+    // 探测失败当成「还没就绪」继续轮询，真到点了由 waitFor 报超时。
     const target = await waitFor(
       async () => {
-        const response = await fetch(`http://127.0.0.1:${port}/json/list`);
-        const list = await response.json();
-        return list.find((item) => item.type === 'page' && item.webSocketDebuggerUrl) ?? null;
+        try {
+          const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
+            signal: AbortSignal.timeout(PROBE_TIMEOUT),
+          });
+          const list = await response.json();
+          return list.find((item) => item.type === 'page' && item.webSocketDebuggerUrl) ?? null;
+        } catch {
+          return null;
+        }
       },
       { label: '页面 target' },
     );

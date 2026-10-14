@@ -130,6 +130,7 @@ src/lib/highlight.ts        命中片段切分，供高亮渲染
 src/lib/export.ts           导出计划：单篇 / 目录 / 全部，文件名去重
 src/lib/export-sink.ts      把计划真正落盘：真机走保存对话框，浏览器走下载
 src/lib/zip.ts              最小 zip 打包（store 模式，无依赖）
+src/lib/deadline.ts         给可能永远不返回的等待加期限（出图 / 打印那条路全靠它兜）
 src/lib/preview-render.ts   离屏渲染一篇文档，打印与出图共用（亮色、等公式与字体就绪）
 src/lib/print.ts            打印 / 存 PDF：管打印对话框与善后
 src/lib/snapshot.ts         整篇转 PNG：样式与字体内联进 SVG，再画进 canvas
@@ -141,7 +142,7 @@ src/composables/useSearch.ts 搜索面板状态与正文读取缓存
 src/composables/useShortcuts.ts 应用级快捷键表（设置面板直接渲染它）
 src/components/             Vue 组件（文档树 / 编辑器 / 大纲 / 搜索 / 关键词 / 设置）
 style.css                   全局样式与明暗主题变量
-tests/                      vitest：装树、关键词、大纲、存储、附件、搜索、导出、出图、zip、滚动映射
+tests/                      vitest：装树、关键词、大纲、存储、附件、搜索、导出、出图、zip、滚动映射、超时
 docs/design.md              设计文档：数据模型、同步策略、离线化与已知陷阱
 ```
 

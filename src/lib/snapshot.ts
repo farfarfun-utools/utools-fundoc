@@ -12,6 +12,7 @@
 //
 // 一条硬限制决定了下面每一步为什么长这样：**`<img>` 里的 SVG 不许加载任何外部资源**。
 // 字体、图片必须全部换成 data URL，否则公式会按回退字体量尺寸（上下标全歪），图片直接空白。
+import { fetchWithin, withTimeout } from './deadline';
 import { renderOffscreen, type Offscreen } from './preview-render';
 
 /** 离屏定位用的 class，见 style.css。 */
@@ -33,6 +34,17 @@ const MAX_CANVAS_AREA = 1 << 27;
 
 /** 低于这个倍率就别出图了：缩到这么小的正文已经没法读。 */
 const MIN_SCALE = 0.5;
+
+/**
+ * 取一个资源（样式表、字体、图片）的期限。
+ *
+ * 这些请求全是插件内的本地资源，正常都是毫秒级。超了说明挂住了 —— 挂住的那一个必须
+ * 放弃，否则 `Promise.all` 会让整次出图永远等下去（lib/deadline.ts 里记了复现过程）。
+ */
+const RESOURCE_TIMEOUT = 10_000;
+
+/** 浏览器解码整张 SVG、以及把画布编码成 PNG 的期限。长文这两步真要几秒，给得宽一些。 */
+const RASTER_TIMEOUT = 30_000;
 
 /** 默认倍率。2 倍在高分屏上看着才不毛糙，也正好是微信/飞书里贴图的常见清晰度。 */
 const DEFAULT_SCALE = 2;
@@ -142,8 +154,7 @@ async function toDataUrl(url: string): Promise<string | null> {
   if (cached !== undefined) return cached;
 
   try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const response = await fetchWithin(url, RESOURCE_TIMEOUT, '取图片快照用的资源');
     const blob = await response.blob();
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -170,8 +181,7 @@ async function loadStyleSheet(href: string): Promise<string> {
 
   let css = '';
   try {
-    const response = await fetch(href);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const response = await fetchWithin(href, RESOURCE_TIMEOUT, '取图片快照用的样式表');
     css = await response.text();
   } catch (error) {
     console.warn('[fundoc] 图片快照读不到样式表，这张图的样式会不全', href, error);
@@ -294,7 +304,7 @@ export async function snapshotElement(
   const image = new Image();
   image.src = source;
   try {
-    await image.decode();
+    await withTimeout(image.decode(), RASTER_TIMEOUT, '解码渲染好的页面');
   } catch (error) {
     throw new Error(`渲染成图片失败（浏览器解析不了这张 SVG）：${describe(error)}`);
   }
@@ -311,7 +321,11 @@ export async function snapshotElement(
   context.setTransform(scale, 0, 0, scale, 0, 0);
   context.drawImage(image, 0, 0, width, height);
 
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+  const blob = await withTimeout(
+    new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png')),
+    RASTER_TIMEOUT,
+    '编码 PNG',
+  );
   if (!blob) throw new Error('canvas 导出 PNG 失败');
 
   return {
