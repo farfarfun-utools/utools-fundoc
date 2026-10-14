@@ -299,8 +299,27 @@ async function main() {
       await session.waitForExpression('!document.querySelector(".sp-panel")');
     });
 
+    await check('下载下拉里就是图片 / Markdown / PDF 三项', async () => {
+      await session.evaluate(
+        'document.querySelector(\'.doc-head .icon-btn-split\').click(); true',
+      );
+      await session.waitForExpression('!!document.querySelector(".ctx-menu")');
+      const labels = await session.evaluate(`
+        [...document.querySelectorAll('.ctx-menu .ctx-item')].map((item) => item.textContent.trim())
+      `);
+      assert(labels.length === 3, `下拉里有 ${labels.length} 项：${labels.join(' / ')}`);
+      assert(labels[0].startsWith('图片'), `第一项是「${labels[0]}」`);
+      assert(labels[1].startsWith('Markdown'), `第二项是「${labels[1]}」`);
+      assert(labels[2].startsWith('PDF'), `第三项是「${labels[2]}」`);
+      // 点遮罩要能收起来，否则它会一直挡着整个界面。
+      await session.evaluate(
+        'document.querySelector(".ctx-menu").parentElement.click(); true',
+      );
+      await session.waitForExpression('!document.querySelector(".ctx-menu")');
+    });
+
     await check('导出真的落下一个 .md 文件', async () => {
-      await session.evaluate('document.querySelector(\'.doc-head .icon-btn[title^="导出"]\').click()');
+      await pickDownload(session, 'Markdown');
       const file = await waitFor(
         () => fs.readdirSync(downloads).find((name) => name.endsWith('.md')),
         { label: '下载的 .md', timeout: 20_000 },
@@ -336,7 +355,7 @@ async function main() {
         'document.querySelector(".doc-title")?.value === "欢迎使用 FunDoc 自测"',
       );
 
-      await session.evaluate('document.querySelector(\'.doc-head .icon-btn[title^="导出"]\').click()');
+      await pickDownload(session, 'Markdown');
       const file = await waitFor(
         () => fs.readdirSync(downloads).find((name) => name.includes('自测')),
         { label: '改动后导出的 .md', timeout: 20_000 },
@@ -372,6 +391,57 @@ async function main() {
         await session.evaluate('!document.documentElement.classList.contains("fundoc-printing")'),
         '打印后 fundoc-printing 标记没摘掉',
       );
+    });
+
+    await check('下载为图片落下一张真的 PNG', async () => {
+      await pickDownload(session, '图片');
+      const file = await waitFor(
+        () => fs.readdirSync(downloads).find((name) => name.endsWith('.png')),
+        { label: '下载的 .png', timeout: 40_000 },
+      );
+      const bytes = new Uint8Array(fs.readFileSync(path.join(downloads, file)));
+      const { width, height } = pngSize(bytes);
+
+      // 纸面宽 800px（.fundoc-shot-page）× 2 倍 = 1600。写死这个数是故意的：
+      // 哪天离屏容器的宽度或倍率被改动，这里要立刻红掉而不是悄悄出一张小图。
+      assert(width === 1600, `PNG 宽 ${width}，应该是 1600`);
+      // 欢迎文档渲染出来是 1382 高（= 691 CSS px）。给一个宽区间：高度塌到几百说明
+      // 内容没渲染完就截了图，比正文长太多说明离屏容器被别的样式撑开了。
+      assert(height > 1000 && height < 2400, `PNG 高 ${height}，不像渲染完整的欢迎文档`);
+      // 体积当「不是空白图」的近似判据：纯白的 1600×1382 PNG 压完只有几 KB，
+      // 真有正文的这张是 280KB 上下。
+      assert(bytes.length > 50_000, `PNG 只有 ${bytes.length} 字节，大概是张空白图`);
+      assert(file.endsWith('.png') && file.includes('自测'), `文件名是「${file}」`);
+    });
+
+    await check('出图后离屏容器收干净了，编辑器也没留在亮色主题上', async () => {
+      await session.waitForExpression('!document.querySelector(".fundoc-shot-root")');
+      // 出图一律按亮色渲染，会把 Vditor 的全局内容主题 <link> 带偏。这里的欢迎流程是
+      // 亮色，所以只能验「主题链接还在、指向的是 content-theme」—— 真正的回归是它被
+      // 换成某张别的表或者整个丢掉。
+      const href = await session.evaluate(`
+        (() => {
+          const link = document.getElementById('vditorContentTheme');
+          return link ? link.getAttribute('href') : null;
+        })()
+      `);
+      assert(href && href.includes('content-theme'), `内容主题链接是「${href}」`);
+    });
+
+    await check('复制为图片：写进剪贴板并如实报告结果', async () => {
+      // 无头 Chromium 默认不给剪贴板写权限，不授权的话走的是失败分支 —— 那条分支也得
+      // 验，但这里要验的是成功路径。
+      await session.send('Browser.grantPermissions', {
+        origin: site.origin,
+        permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'],
+      });
+      await session.evaluate('document.querySelector(\'.doc-head .icon-btn[title="复制为图片"]\').click(); true');
+      const notice = await session.waitForExpression(
+        '(() => { const el = document.querySelector(".banner-notice span"); const t = el && el.textContent.trim(); return t && !t.startsWith("正在生成") ? t : null; })()',
+        { timeout: 40_000 },
+      );
+      assert(notice.startsWith('已复制为图片'), `提示是「${notice}」`);
+      assert(/1600×\d+/.test(notice), `提示里没有像素尺寸：「${notice}」`);
     });
 
     await check('Ctrl+Shift+M 能切到分屏模式', async () => {
@@ -518,6 +588,52 @@ async function pressCtrl(session, key, { shift = false } = {}) {
   };
   await session.send('Input.dispatchKeyEvent', { type: 'keyDown', ...common });
   await session.send('Input.dispatchKeyEvent', { type: 'keyUp', ...common });
+}
+
+/**
+ * 展开顶栏的下载下拉，点其中一项。
+ *
+ * 菜单 Teleport 到 body，和文档树的右键菜单共用 `.ctx-menu`，所以得先把顶栏那个
+ * 遮罩之外的菜单找出来再按文字挑 —— 顶栏里只有一个 `.ctx-menu` 是展开状态，
+ * 直接全局找就够了。
+ *
+ * @param session CDP 会话。
+ * @param label 菜单项文字的前缀，如「图片」。
+ */
+async function pickDownload(session, label) {
+  await session.evaluate(
+    'document.querySelector(\'.doc-head .icon-btn-split\').click(); true',
+  );
+  await session.waitForExpression('!!document.querySelector(".ctx-menu")');
+  const clicked = await session.evaluate(`
+    (() => {
+      const items = [...document.querySelectorAll('.ctx-menu .ctx-item')];
+      const target = items.find((item) => item.textContent.trim().startsWith(${JSON.stringify(label)}));
+      if (!target) return items.map((item) => item.textContent.trim()).join(' / ');
+      target.click();
+      return true;
+    })()
+  `);
+  if (clicked !== true) throw new Error(`下拉里没有「${label}」，只有：${clicked}`);
+  // 菜单点完就该收起来，否则遮罩会挡住后面所有点击。
+  await session.waitForExpression('!document.querySelector(".ctx-menu")');
+}
+
+/**
+ * 读 PNG 头里的宽高。
+ *
+ * 只认签名和第一个 IHDR 块 —— 要验的是「真出了一张有尺寸的 PNG」，不是解码整张图。
+ *
+ * @param bytes 文件字节。
+ * @returns `{ width, height }`。
+ */
+function pngSize(bytes) {
+  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const ok = signature.every((byte, index) => bytes[index] === byte);
+  if (!ok) throw new Error(`不是 PNG，开头是 ${[...bytes.slice(0, 8)].join(',')}`);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  // 8 字节签名 + 4 字节长度 + 4 字节类型（IHDR），之后是宽、高各 4 字节大端。
+  return { width: view.getUint32(16), height: view.getUint32(20) };
 }
 
 /**

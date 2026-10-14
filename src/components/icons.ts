@@ -4,6 +4,7 @@
 // 去维护字体子集。线条是 Feather 风格，统一 24 视窗、1.8 描边、圆端。
 export const ICON_PATHS = {
   chevron: ['M9 18l6-6-6-6'],
+  'chevron-down': ['M6 9l6 6 6-6'],
   folder: ['M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
   'folder-open': [
     'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1',
@@ -40,6 +41,17 @@ export const ICON_PATHS = {
     'M6 9V3h12v6',
     'M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2',
     'M6 14h12v7H6z',
+  ],
+  image: [
+    'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+    'M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
+    'M21 16l-5-5L5 21',
+  ],
+  markdown: [
+    'M3 6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z',
+    'M6.5 15.5v-7l3 3.5 3-3.5v7',
+    'M16 8.5v5',
+    'M13.8 11.3L16 13.5l2.2-2.2',
   ],
 } satisfies Record<string, string[]>;
 

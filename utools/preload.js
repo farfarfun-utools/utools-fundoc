@@ -189,6 +189,27 @@ window.fundoc = {
     }
   },
 
+  /**
+   * 写单个二进制文件到指定绝对路径（导出的 PNG 走这条）。
+   *
+   * 字节用 base64 传而不是 Uint8Array：跨 preload 边界的类型化数组到了 Node 侧
+   * 不保证还是同一种视图，base64 是两边都没有歧义的形态。
+   *
+   * @param {string} filePath 目标文件绝对路径。
+   * @param {string} base64 文件内容的 base64 编码。
+   * @returns {{ ok: true, root: string } | { ok: false, message: string }}
+   */
+  writeBinaryFile(filePath, base64) {
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true })
+      fs.writeFileSync(filePath, Buffer.from(base64 || '', 'base64'))
+      return { ok: true, root: filePath }
+    } catch (error) {
+      console.error('[fundoc] 导出写入失败', filePath, error)
+      return { ok: false, message: (error && error.message) || '写入失败' }
+    }
+  },
+
   /** 在系统文件管理器里定位导出结果。 */
   showInFolder(target) {
     try {

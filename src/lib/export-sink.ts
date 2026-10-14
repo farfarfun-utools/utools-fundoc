@@ -75,6 +75,46 @@ function deliverInBrowser(plan: ExportPlan): ExportOutcome {
 }
 
 /**
+ * 把一坨字节交给用户（图片导出走这条，不经过「计划」那套）。
+ *
+ * 和 deliverPlan 分开是因为形状不一样：那边是一棵可能有几十个文件的树，
+ * 这边永远是单个二进制文件，没有目录、没有去重、也没有「单文件 vs zip」的分流。
+ *
+ * @param name 建议文件名，含扩展名。
+ * @param bytes 文件字节。
+ * @param mime MIME 类型，决定浏览器下载时的 Blob 类型。
+ * @param dialog 真机保存对话框的标题与扩展名过滤。
+ * @returns 落地结果。用户取消时是 `cancelled`，不是失败。
+ */
+export function deliverBytes(
+  name: string,
+  bytes: Uint8Array,
+  mime: string,
+  dialog: { title: string; filterName: string; extensions: string[] },
+): ExportOutcome {
+  const bridge = host.bridge;
+  if (!host.native || !bridge) {
+    if (typeof document === 'undefined' || typeof URL.createObjectURL !== 'function') {
+      return { status: 'failed', message: '当前环境不支持下载' };
+    }
+    download(name, bytes, mime);
+    return { status: 'done', target: name, revealable: false };
+  }
+
+  const target = host.showSaveDialog({
+    title: dialog.title,
+    defaultPath: name,
+    filters: [{ name: dialog.filterName, extensions: dialog.extensions }],
+  });
+  if (!target) return { status: 'cancelled' };
+
+  const result = bridge.writeBinaryFile(target, toBase64(bytes));
+  return result.ok
+    ? { status: 'done', target: result.root, revealable: true }
+    : { status: 'failed', message: result.message };
+}
+
+/**
  * 把一份导出计划写出去。
  *
  * 真机会弹原生对话框让用户选位置；浏览器预览走下载。

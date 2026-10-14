@@ -29,6 +29,9 @@ uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式�
   文件名成为文档名，正文原样入库。
 - **导出与打印**：单篇导出 `.md`、整个目录或全部文档导出为保持层级的 zip；`Ctrl/⌘ + P`
   走系统打印对话框存 PDF —— 等公式和字体真渲染完才弹窗，不会印出半截公式。
+- **一键复制为图片**：把整篇文档渲染成一张 PNG 直接丢进剪贴板，公式、代码高亮、章节编号
+  原样带着，贴进微信/飞书就能发。顶栏的下载按钮是个下拉，图片 / Markdown / PDF 任选。
+  字体和图片全部内联进图里，**断网也出得来**。
 - **键盘优先**：新建、保存、导出、打印、折叠左右栏、切编辑模式都有快捷键，且刻意绕开了
   Vditor 自己的那二十来个组合键。全表在设置面板里列着。
 - **跨设备同步**：文档存在 uTools 文档数据库，开启 uTools 数据同步后自动流转到你的其他设备；
@@ -127,7 +130,9 @@ src/lib/highlight.ts        命中片段切分，供高亮渲染
 src/lib/export.ts           导出计划：单篇 / 目录 / 全部，文件名去重
 src/lib/export-sink.ts      把计划真正落盘：真机走保存对话框，浏览器走下载
 src/lib/zip.ts              最小 zip 打包（store 模式，无依赖）
-src/lib/print.ts            打印 / 存 PDF：离屏渲染、等公式与字体就绪
+src/lib/preview-render.ts   离屏渲染一篇文档，打印与出图共用（亮色、等公式与字体就绪）
+src/lib/print.ts            打印 / 存 PDF：管打印对话框与善后
+src/lib/snapshot.ts         整篇转 PNG：样式与字体内联进 SVG，再画进 canvas
 src/lib/scroll-map.ts       分屏滚动的锚点分段映射（纯计算）
 src/lib/scroll-sync.ts      分屏滚动同步：镜像测量源码行位置、接管预览栏滚动
 src/composables/useDocs.ts  全局状态与所有数据库写入，组件只读不写
@@ -136,7 +141,7 @@ src/composables/useSearch.ts 搜索面板状态与正文读取缓存
 src/composables/useShortcuts.ts 应用级快捷键表（设置面板直接渲染它）
 src/components/             Vue 组件（文档树 / 编辑器 / 大纲 / 搜索 / 关键词 / 设置）
 style.css                   全局样式与明暗主题变量
-tests/                      vitest：装树、关键词、大纲、存储、附件、搜索、导出、zip、滚动映射
+tests/                      vitest：装树、关键词、大纲、存储、附件、搜索、导出、出图、zip、滚动映射
 docs/design.md              设计文档：数据模型、同步策略、离线化与已知陷阱
 ```
 

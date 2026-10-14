@@ -6,7 +6,7 @@
 import zlib from 'node:zlib';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExportPlan } from '../src/lib/export';
-import { deliverPlan } from '../src/lib/export-sink';
+import { deliverBytes, deliverPlan } from '../src/lib/export-sink';
 import { host, type Bridge, type WritableFile } from '../src/lib/host';
 
 const encoder = new TextEncoder();
@@ -336,5 +336,97 @@ describe('deliverPlan 真机', () => {
     stubBridge({ ok: false, message: '磁盘已满' });
 
     expect(deliverPlan(plan())).toEqual({ status: 'failed', message: '磁盘已满' });
+  });
+});
+
+// ── deliverBytes（图片导出走这条） ──
+//
+// 和 deliverPlan 共用同一套宿主打桩。要钉住的还是分流，外加一条真机特有的：
+// 字节必须以 base64 过 IPC —— 直接传 Uint8Array 到了 Node 侧不保证还是同一种视图。
+describe('deliverBytes', () => {
+  const dialog = { title: '导出图片', filterName: 'PNG 图片', extensions: ['png'] };
+
+  it('浏览器里直接下载，Blob 带上 MIME', async () => {
+    const outcome = deliverBytes('文档.png', png(), 'image/png', dialog);
+
+    expect(outcome).toEqual({ status: 'done', target: '文档.png', revealable: false });
+    expect(downloads).toHaveLength(1);
+    expect(downloads[0].name).toBe('文档.png');
+    expect(downloads[0].blob.type).toBe('image/png');
+    expect(await bytesOf(downloads[0].blob)).toEqual(png());
+  });
+
+  it('没有 document 的环境报错而不是抛异常', () => {
+    vi.stubGlobal('document', undefined);
+
+    expect(deliverBytes('文档.png', png(), 'image/png', dialog)).toEqual({
+      status: 'failed',
+      message: '当前环境不支持下载',
+    });
+  });
+
+  it('真机走保存对话框，字节以 base64 交给 preload', () => {
+    setNative(true);
+    const written: Array<{ path: string; base64: string }> = [];
+    host.bridge = {
+      writeBinaryFile: (path: string, base64: string) => {
+        written.push({ path, base64 });
+        return { ok: true as const, root: path };
+      },
+    } as unknown as Bridge;
+    const save = vi.fn(() => '/home/u/图片/文档.png');
+    host.showSaveDialog = save;
+
+    const outcome = deliverBytes('文档.png', png(), 'image/png', dialog);
+
+    expect(outcome).toEqual({
+      status: 'done',
+      target: '/home/u/图片/文档.png',
+      revealable: true,
+    });
+    expect(save).toHaveBeenCalledWith({
+      title: '导出图片',
+      defaultPath: '文档.png',
+      filters: [{ name: 'PNG 图片', extensions: ['png'] }],
+    });
+    expect(written).toEqual([
+      { path: '/home/u/图片/文档.png', base64: Buffer.from(png()).toString('base64') },
+    ]);
+    // 走原生路径时不该再触发一次下载。
+    expect(downloads).toEqual([]);
+  });
+
+  it('用户取消保存对话框 → cancelled，而且什么都没写', () => {
+    setNative(true);
+    const write = vi.fn(() => ({ ok: true as const, root: '/x' }));
+    host.bridge = { writeBinaryFile: write } as unknown as Bridge;
+    host.showSaveDialog = vi.fn(() => undefined);
+
+    expect(deliverBytes('文档.png', png(), 'image/png', dialog)).toEqual({ status: 'cancelled' });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('真机写盘失败时把 preload 的消息透出来', () => {
+    setNative(true);
+    host.bridge = {
+      writeBinaryFile: () => ({ ok: false as const, message: '磁盘已满' }),
+    } as unknown as Bridge;
+    host.showSaveDialog = vi.fn(() => '/x/文档.png');
+
+    expect(deliverBytes('文档.png', png(), 'image/png', dialog)).toEqual({
+      status: 'failed',
+      message: '磁盘已满',
+    });
+  });
+
+  it('真机但 preload 没加载上时退回下载', () => {
+    setNative(true);
+    host.bridge = null;
+
+    expect(deliverBytes('文档.png', png(), 'image/png', dialog)).toMatchObject({
+      status: 'done',
+      revealable: false,
+    });
+    expect(downloads).toHaveLength(1);
   });
 });

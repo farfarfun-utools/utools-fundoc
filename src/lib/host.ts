@@ -79,6 +79,13 @@ export type Bridge = {
   ): WriteResult;
   /** 写单个文本文件到绝对路径（用户在保存对话框里选好的那个）。 */
   writeTextFile(filePath: string, text: string): WriteResult;
+  /**
+   * 写单个二进制文件到绝对路径（导出的 PNG 走这条）。
+   *
+   * 字节用 base64 传：跨 preload 边界的 Uint8Array 到了 Node 侧不保证还是同一种
+   * 视图类型，base64 是两边都没有歧义的形态。
+   */
+  writeBinaryFile(filePath: string, base64: string): WriteResult;
   /** 在系统文件管理器里定位某个路径。 */
   showInFolder(target: string): void;
 };
@@ -98,6 +105,19 @@ export type Host = {
   isDarkColors(): boolean;
   outPlugin(): void;
   copyText(text: string): void;
+  /**
+   * 把一张图片写进系统剪贴板。
+   *
+   * 真机走 `utools.copyImage`（同步返回成功与否）；浏览器里走异步的
+   * `navigator.clipboard.write`，所以这个口子统一成 Promise。**不能假装成功** ——
+   * 浏览器要求安全上下文 + 页面有焦点，拿不到权限时要让用户看见提示，
+   * 而不是看着「已复制」然后粘出个空。
+   *
+   * @param bytes 图片字节。
+   * @param mime MIME 类型，如 `image/png`。
+   * @returns 是否真的写进去了。
+   */
+  copyImage(bytes: Uint8Array, mime: string): Promise<boolean>;
   showNotification(body: string): void;
   /** 保存文件对话框。用户取消返回 undefined；浏览器垫片里永远 undefined。 */
   showSaveDialog(options: Parameters<typeof utools.showSaveDialog>[0]): string | undefined;
@@ -242,6 +262,21 @@ export function createShimHost(): Host {
     isDarkColors: () => globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false,
     outPlugin: () => {},
     copyText: (text) => void globalThis.navigator?.clipboard?.writeText(text),
+    copyImage: async (bytes, mime) => {
+      const clipboard = globalThis.navigator?.clipboard;
+      // ClipboardItem 得用 typeof 探：Node 里（跑单测时）这个全局压根不存在，
+      // 直接引用就是 ReferenceError。
+      if (!clipboard?.write || typeof ClipboardItem === 'undefined') return false;
+      try {
+        const blob = new Blob([bytes.slice() as BlobPart], { type: mime });
+        await clipboard.write([new ClipboardItem({ [mime]: blob })]);
+        return true;
+      } catch (error) {
+        // 没有安全上下文、页面没焦点、用户拒了权限都会落到这里。
+        console.warn('[fundoc] 写剪贴板图片失败', error);
+        return false;
+      }
+    },
     showNotification: (body) => console.warn('[fundoc]', body),
     // 浏览器里没有原生文件对话框。返回 undefined（= 用户取消）让调用方走各自的
     // 降级分支，而不是在这里假装成功 —— 假装成功后面一定会写到不存在的路径上。
@@ -271,6 +306,8 @@ function createNativeHost(api: typeof utools): Host {
     isDarkColors: () => api.isDarkColors(),
     outPlugin: () => void api.outPlugin(),
     copyText: (text) => void api.copyText(text),
+    // utools.copyImage 是同步的，签名也只收字节/路径，不收 MIME —— 它自己按内容认。
+    copyImage: async (bytes) => api.copyImage(bytes),
     showNotification: (body) => api.showNotification(body),
     showSaveDialog: (options) => api.showSaveDialog(options),
     showOpenDialog: (options) => api.showOpenDialog(options),

@@ -124,6 +124,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .icon-btn:hover { color: var(--text-strong); background: var(--row-hover); }
 .icon-btn.active { color: var(--primary-strong); background: var(--primary-soft); }
 .icon-btn svg { width: 15px; height: 15px; }
+.icon-btn:disabled { opacity: .4; cursor: default; }
+.icon-btn:disabled:hover { color: var(--muted); background: none; }
+
+/* 带下拉箭头的图标按钮。整体宽一点装得下那个小角标，角标本身刻意画得很淡 ——
+   它只是「这里还有东西」的提示，不该和主图标抢注意力。 */
+.icon-btn-split { width: 32px; gap: 1px; }
+.icon-btn-split .icon-btn-caret { width: 10px; height: 10px; opacity: .65; }
 
 /* ── 文档树 ───────────────────────────────────────── */
 .tree-row {
@@ -618,3 +625,29 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   /* 链接下划线在纸上没有意义，颜色也会浪费彩色墨。 */
   .fundoc-print-root a { color: inherit; text-decoration: none; }
 }
+
+/* ── 复制 / 下载为图片 ─────────────────────────────── */
+/* 离屏定位和纸面外观刻意分成两个 class：截图时克隆体要**去掉**定位（带着
+   left: -10000px 进 SVG 就是一片空白），但得留着宽度和留白。见 lib/snapshot.ts。 */
+.fundoc-shot-root {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+}
+
+.fundoc-shot-page {
+  /* 800px：微信、飞书、钉钉里贴图的显示宽度都在这个量级，再宽只是让字变小。 */
+  width: 800px;
+  padding: 32px 36px;
+  box-sizing: border-box;
+  /* 一律亮色：见 preview-render.ts 里 renderOffscreen 的说明。 */
+  color-scheme: light;
+  background: #fff;
+  color: #1a1a1a;
+}
+/* 图片没有滚动条，长代码行必须折行，否则右边直接被裁掉（和打印同理）。 */
+.fundoc-shot-page pre, .fundoc-shot-page code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fundoc-shot-page img { max-width: 100%; }

@@ -21,6 +21,8 @@ const {
   notify,
   exportNode,
   printActive,
+  copyActiveAsImage,
+  exportActiveAsImage,
 } = useDocs();
 
 const hostEl = ref<HTMLElement | null>(null);
@@ -100,6 +102,32 @@ function sizeLabel(bytes: number | undefined): string {
   const kb = bytes / 1024;
   return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(2)} MB`;
 }
+
+/** 下载下拉菜单的位置。null = 收起。 */
+const downloadMenu = ref<{ x: number; y: number } | null>(null);
+const downloadBtn = ref<HTMLElement | null>(null);
+
+/**
+ * 展开 / 收起下载菜单。
+ *
+ * 菜单得 Teleport 到 body（顶栏有 overflow 裁剪），所以位置要自己量：贴在按钮下沿，
+ * 右边缘和按钮右边缘对齐 —— 这几个按钮都挨着窗口右侧，左对齐会把菜单顶出屏幕。
+ */
+function toggleDownloadMenu(): void {
+  if (downloadMenu.value) {
+    downloadMenu.value = null;
+    return;
+  }
+  const box = downloadBtn.value?.getBoundingClientRect();
+  if (!box) return;
+  downloadMenu.value = { x: box.right, y: box.bottom + 4 };
+}
+
+/** 选了菜单里的某一项：先收起菜单再干活，免得耗时的出图期间菜单还挂在那儿。 */
+function runFromMenu(action: () => void): void {
+  downloadMenu.value = null;
+  action();
+}
 </script>
 
 <template>
@@ -144,10 +172,23 @@ function sizeLabel(bytes: number | undefined): string {
       <button
         v-if="activeMeta"
         class="icon-btn"
-        title="导出为 .md 文件（Ctrl+Shift+S）"
-        @click="exportNode(state.activeNodeId)"
+        title="复制为图片"
+        :disabled="state.busy"
+        @click="copyActiveAsImage()"
+      >
+        <Icon name="image" />
+      </button>
+      <button
+        v-if="activeMeta"
+        ref="downloadBtn"
+        class="icon-btn icon-btn-split"
+        :class="{ active: !!downloadMenu }"
+        title="下载为图片 / Markdown / PDF"
+        :disabled="state.busy"
+        @click="toggleDownloadMenu"
       >
         <Icon name="download" />
+        <Icon name="chevron-down" class="icon-btn-caret" />
       </button>
       <button
         v-if="activeMeta"
@@ -179,4 +220,32 @@ function sizeLabel(bytes: number | undefined): string {
       <p>左边选一篇文档，或者新建一篇</p>
     </div>
   </section>
+
+  <!-- 和文档树的右键菜单同一套：挂在 body 层级，用全屏遮罩接住「点别处关闭」。
+       顶栏自己有 overflow 裁剪，菜单留在里面会被切掉。 -->
+  <Teleport to="body">
+    <div
+      v-if="downloadMenu"
+      style="position: fixed; inset: 0; z-index: 59"
+      @click="downloadMenu = null"
+      @contextmenu.prevent="downloadMenu = null"
+    >
+      <!-- translateX(-100%) 做右对齐：菜单宽度由内容决定，脚本里量不到。 -->
+      <div
+        class="ctx-menu"
+        :style="{ left: `${downloadMenu.x}px`, top: `${downloadMenu.y}px`, transform: 'translateX(-100%)' }"
+        @click.stop
+      >
+        <button class="ctx-item" @click="runFromMenu(() => exportActiveAsImage())">
+          <Icon name="image" />图片（.png）
+        </button>
+        <button class="ctx-item" @click="runFromMenu(() => exportNode(state.activeNodeId))">
+          <Icon name="markdown" />Markdown（.md）
+        </button>
+        <button class="ctx-item" @click="runFromMenu(() => printActive())">
+          <Icon name="printer" />PDF（走打印对话框）
+        </button>
+      </div>
+    </div>
+  </Teleport>
 </template>

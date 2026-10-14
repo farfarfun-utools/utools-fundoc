@@ -33,10 +33,11 @@ import {
   removeAssets,
   toStorable,
 } from '../lib/asset';
-import { buildExportPlan, type ExportIO } from '../lib/export';
-import { deliverPlan } from '../lib/export-sink';
+import { buildExportPlan, sanitizeSegment, type ExportIO } from '../lib/export';
+import { deliverBytes, deliverPlan } from '../lib/export-sink';
 import { numberHeadings } from '../lib/heading-number';
 import { printDocument } from '../lib/print';
+import { snapshotMarkdown, type Snapshot } from '../lib/snapshot';
 import { nodeIdFromFeatureCode, reconcileFeatures, unregisterFeature } from '../lib/keyword';
 import { firstHeading, parseOutline } from '../lib/outline';
 import type { NodeMeta, NodeType, Settings } from '../lib/types';
@@ -102,6 +103,13 @@ type State = {
    * 不直接盯 `dark`：那个值在打印前后并没有变，watch 不会触发。
    */
   themeEpoch: number;
+  /**
+   * 正在跑一件要等的活儿（目前只有出图）。
+   *
+   * 出一张长文的 PNG 是几百毫秒到几秒的事，期间按钮要禁掉：重复点会并发开好几个离屏
+   * 渲染，它们都会抢着切 Vditor 的全局内容主题，收尾顺序一乱编辑器就留在亮色上了。
+   */
+  busy: boolean;
   /** 当前文档在别的设备上被改了，而本地有未保存改动。非 null 时界面显示冲突条。 */
   conflict: { remoteMarkdown: string } | null;
   notice: string;
@@ -118,6 +126,7 @@ const state = reactive<State>({
   systemDark: host.isDarkColors(),
   expanded: (host.dbStorage.getItem(EXPANDED_KEY) as string[]) ?? [],
   themeEpoch: 0,
+  busy: false,
   conflict: null,
   notice: '',
 });
@@ -578,6 +587,92 @@ async function printActive(): Promise<void> {
   if (outcome.mathTimedOut) notify('部分公式渲染超时，打印结果里可能有原始 LaTeX');
 }
 
+// ───────────────────────────── 出图 ─────────────────────────────
+
+/**
+ * 把当前文档渲染成一张 PNG。
+ *
+ * 「复制为图片」和「下载为图片」共用这一步，只有拿到字节之后的去处不同。
+ *
+ * @returns 文件名、PNG 和一句追加提示；失败时 null（提示已经发出去了）。
+ */
+async function renderActiveImage(): Promise<{
+  name: string;
+  shot: Snapshot;
+  warning: string;
+} | null> {
+  flush();
+  const meta = activeMeta.value;
+  if (!meta) {
+    notify('先打开一篇文档');
+    return null;
+  }
+  if (state.busy) {
+    notify('上一张图还在生成');
+    return null;
+  }
+
+  state.busy = true;
+  notify('正在生成图片…');
+  try {
+    const outcome = await snapshotMarkdown(state.markdown, {
+      headingNumber: state.settings.headingNumber,
+    });
+    // 和打印同理：离屏渲染一律按亮色走，会把 Vditor 的全局内容主题带偏，成功失败都要让
+    // 编辑器重贴一次主题。
+    state.themeEpoch += 1;
+
+    if (!outcome.ok) {
+      notify(outcome.message);
+      return null;
+    }
+    return {
+      name: meta.name,
+      shot: outcome.shot,
+      warning: outcome.mathTimedOut ? '，但部分公式渲染超时，图里可能有原始 LaTeX' : '',
+    };
+  } finally {
+    state.busy = false;
+  }
+}
+
+/** 把当前文档整篇复制成一张图片，直接粘到聊天窗口里。 */
+async function copyActiveAsImage(): Promise<void> {
+  const rendered = await renderActiveImage();
+  if (!rendered) return;
+
+  const { shot, warning } = rendered;
+  const copied = await host.copyImage(shot.bytes, 'image/png');
+  // 复制失败必须说出来。浏览器要求安全上下文 + 页面有焦点，拿不到权限时报「已复制」
+  // 的结果是用户粘出一片空白，还以为是插件把图弄丢了。
+  notify(
+    copied
+      ? `已复制为图片（${shot.width}×${shot.height}）${warning}`
+      : '复制失败：拿不到剪贴板权限，可以改用「下载 → 图片」',
+  );
+}
+
+/** 把当前文档整篇存成一张 PNG。 */
+async function exportActiveAsImage(): Promise<void> {
+  const rendered = await renderActiveImage();
+  if (!rendered) return;
+
+  const { name, shot, warning } = rendered;
+  const outcome = deliverBytes(`${sanitizeSegment(name)}.png`, shot.bytes, 'image/png', {
+    title: '导出图片',
+    filterName: 'PNG 图片',
+    extensions: ['png'],
+  });
+  if (outcome.status === 'cancelled') return;
+  if (outcome.status === 'failed') {
+    notify(outcome.message);
+    return;
+  }
+
+  notify(`已导出到 ${outcome.target}${warning}`);
+  if (outcome.revealable) host.bridge?.showInFolder(outcome.target);
+}
+
 // ───────────────────────────── 展开 / 设置 ─────────────────────────────
 
 function toggleExpanded(nodeId: string): void {
@@ -754,6 +849,8 @@ export function useDocs() {
     cleanOrphanAssets,
     exportNode,
     printActive,
+    copyActiveAsImage,
+    exportActiveAsImage,
     toggleExpanded,
     resolveConflictKeepLocal,
     resolveConflictKeepBoth,
