@@ -1,3 +1,5 @@
+<p align="center"><img src="utools/logo.png" alt="fundoc" width="88"></p>
+
 # utools-fundoc
 
 uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式随时切换，LaTeX 公式完全离线渲染，
