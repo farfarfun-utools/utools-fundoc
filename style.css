@@ -2,64 +2,103 @@
 
 :root {
   color-scheme: light;
+
+  /* 品牌青。--primary 只用来描边和填色，不做文字 —— 它在浅底上只有 2.5:1，
+     小字会发虚。需要「有颜色的字」时一律用 --primary-strong。 */
   --primary: #4fc9da;
-  --primary-strong: #21a9bd;
-  --primary-soft: #edfafb;
-  --bg: #f4f4f4;
-  --surface: #fff;
-  --text: #45505a;
-  --text-strong: #3e4a58;
-  --muted: #9ca3af;
-  --placeholder: #a9aec0;
-  --border: #e8ebef;
-  --danger: #f06445;
-  --danger-soft: #fef0ec;
-  --success: #00c1a2;
-  --warning: #e9a23b;
-  --warning-soft: #fdf5e8;
-  --fill: #f0f2f5;
-  --fill-light: #f5f7fa;
-  --control-bg: #fff;
-  --control-border: #e8ebef;
-  --panel-bg: #fafbfc;
-  --row-hover: #f0f2f5;
-  --row-active: #edfafb;
-  --dialog-shadow: 0 12px 32px 4px rgb(0 0 0 / 4%), 0 8px 20px rgb(0 0 0 / 8%);
-  --float-shadow: 0 6px 24px rgb(140 152 164 / 13%);
-  --menu-border: #fff;
-  --switch-off: #e8ebef;
-  --scrollbar: #d7dbe0;
+  --primary-strong: #117e91;
+  --primary-soft: #e6f7fa;
+  --btn-primary-bg: #117e91;
+  --btn-primary-hover: #0c6878;
+  --btn-primary-fg: #fff;
+
+  /* 灰阶：越靠近内容越亮，但**到不了纯白**。纯白正文区和纯白代码块叠在一起
+     就没有边界了，而且满屏 #fff 盯久了累眼。四档之间各差 3~4% 亮度，
+     刚够分出层次又不显脏。 */
+  --bg: #e6eaef;        /* 窗口底，三栏铺满后只在缝隙露出来 */
+  --panel-bg: #eef1f5;  /* 左右两栏，比正文后退一档 */
+  --surface: #f9fafb;   /* 正文区 / 弹窗 / 菜单，「纸面」 */
+  --code-bg: #eaeef3;   /* 代码块，从纸面上凹下去一档 */
+
+  --text: #434e5a;
+  --text-strong: #2b3642;
+  --muted: #8a929f;
+  --placeholder: #a9b0bd;
+  /* 正文链接。Vditor 没给 .vditor-reset a 定颜色，不管就是浏览器默认的
+     #0000EE —— 和整套青色系完全不搭。取主色同族的深青，4.8:1 够 AA。 */
+  --link: #0f7f96;
+
+  --border: #e0e5ec;
+  --border-strong: #d1d8e1;  /* 代码块、表格描边：细线要能压住灰底 */
+
+  --danger: #e2593a;
+  --danger-soft: #fdeee9;
+  --success: #00ab92;
+  --warning: #d6912c;
+  --warning-soft: #fcf3e4;
+  --fill: #e7ebf1;
+  --fill-light: #f0f3f7;
+  --control-bg: #fff;        /* 输入框按钮保持纯白：小面积纯白才「可点」 */
+  --control-border: #dce2ea;
+  --row-hover: #e3e8ef;      /* 必须压过 --panel-bg，否则侧栏 hover 看不见 */
+  --row-active: #d9f1f6;
+  --dialog-shadow: 0 12px 32px 4px rgb(43 54 66 / 6%), 0 8px 20px rgb(43 54 66 / 10%);
+  --float-shadow: 0 6px 24px rgb(43 54 66 / 14%);
+  --menu-border: #e0e5ec;
+  --switch-off: #d5dbe3;
+  --scrollbar: #c6ced9;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  /* hover/active 的变色一律走它，别硬切 —— 硬切是「廉价」最大的来源。 */
+  --ease: .14s cubic-bezier(.4, 0, .2, 1);
+  /* 聚焦光晕。写死 rgb 而不是 color-mix(var(--primary) …)：uTools 内置的
+     Chromium 版本不保证到 111，color-mix 失效时整条 box-shadow 会被丢掉。 */
+  --ring: 0 0 0 3px rgb(79 201 218 / 22%);
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   font-size: 16px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
   --primary: #4fc9da;
-  --primary-strong: #7fdcea;
-  --primary-soft: #27353a;
-  --bg: #232528;
-  --surface: #2e3033;
-  --text: #d1d6df;
-  --text-strong: #e6ebf4;
-  --muted: #a8acb4;
-  --placeholder: #94979e;
-  --border: #383a3e;
-  --danger-soft: #382b2b;
-  --warning-soft: #3a3225;
-  --fill: #3d3f42;
-  --fill-light: #343639;
-  --control-bg: #2c2e31;
-  --control-border: #434548;
-  --panel-bg: #282a2d;
-  --row-hover: #343639;
-  --row-active: #27353a;
-  --dialog-shadow: 0 12px 32px 4px rgb(0 0 0 / 36%), 0 8px 20px rgb(0 0 0 / 72%);
-  --float-shadow: 0 0 6px rgb(0 0 0 / 12%);
-  --menu-border: #383a3e;
-  --switch-off: #434548;
-  --scrollbar: #4b4d51;
+  --primary-strong: #6fd9e8;
+  --primary-soft: #1d3a42;
+  --btn-primary-bg: #4fc9da;
+  --btn-primary-hover: #6fd9e8;
+  --btn-primary-fg: #10272c;
+  --bg: #1d1f22;
+  --panel-bg: #232629;
+  --surface: #2a2d31;
+  --code-bg: #202327;
+  --text: #ccd2dc;
+  --text-strong: #e8edf5;
+  --muted: #9aa1ad;
+  --placeholder: #878d98;
+  --link: #5fcfe3;
+  --border: #353941;
+  --border-strong: #454a54;
+  --danger: #f0775a;
+  --danger-soft: #3a2a27;
+  --success: #2ecfb4;
+  --warning: #e0a648;
+  --warning-soft: #3a3124;
+  --fill: #383c42;
+  --fill-light: #31353a;
+  --control-bg: #2f3338;
+  --control-border: #434851;
+  --row-hover: #32363c;
+  --row-active: #1d3a42;
+  --dialog-shadow: 0 12px 32px 4px rgb(0 0 0 / 36%), 0 8px 20px rgb(0 0 0 / 56%);
+  --float-shadow: 0 6px 24px rgb(0 0 0 / 40%);
+  --menu-border: #3d424a;
+  --switch-off: #474c55;
+  --scrollbar: #4b5157;
+  --ring: 0 0 0 3px rgb(79 201 218 / 30%);
 }
 
 /* 没有 `[data-theme='system']` + prefers-color-scheme 那一套：App.vue 只会往
@@ -79,9 +118,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   outline-offset: 1px;
 }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 8px; background: var(--scrollbar); background-clip: content-box; }
+/* 10px 轨道 + 3px 透明边框 = 4px 实际滑块。比直接写 4px 宽好：鼠标仍有
+   10px 的命中区域，视觉上却是一条细线。平时压到半透明，hover 才实。 */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background: var(--scrollbar);
+  background-clip: content-box;
+  opacity: .6;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
 ::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-corner { background: transparent; }
 
 /* ── 三栏骨架 ───────────────────────────────────────── */
 .shell { height: 100%; display: flex; flex-direction: column; }
@@ -103,11 +152,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 12px;
   letter-spacing: .04em;
 }
-.pane-head-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pane-head-title { min-width: 0; flex: 1; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .pane-scroll { min-height: 0; flex: 1; overflow: hidden auto; padding-bottom: 12px; }
 
 /* 栏宽拖拽把手。做成 5px 宽、负边距盖在边框上，视觉上还是一条细线。 */
-.resizer { width: 5px; flex: 0 0 auto; margin: 0 -3px; z-index: 2; cursor: col-resize; }
+.resizer { width: 5px; flex: 0 0 auto; margin: 0 -3px; z-index: 2; cursor: col-resize; transition: background var(--ease); }
 .resizer:hover, .resizer.dragging { background: var(--primary); opacity: .5; }
 
 /* ── 图标按钮 ───────────────────────────────────────── */
@@ -118,10 +167,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--radius);
   color: var(--muted);
+  transition: color var(--ease), background var(--ease);
 }
 .icon-btn:hover { color: var(--text-strong); background: var(--row-hover); }
+.icon-btn:active { transform: scale(.94); }
 .icon-btn.active { color: var(--primary-strong); background: var(--primary-soft); }
 .icon-btn svg { width: 15px; height: 15px; }
 .icon-btn:disabled { opacity: .4; cursor: default; }
@@ -133,9 +184,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .icon-btn-split .icon-btn-caret { width: 10px; height: 10px; opacity: .65; }
 
 /* ── 文档树 ───────────────────────────────────────── */
+/* 行做成内缩的圆角块，而不是通栏色带：通栏底色会一直顶到面板边框上，
+   选中态看着像「糊了一条」；留 6px 空隙后每一行是独立的一块，层次干净得多。
+   内联的 padding-left（depth * 12 + 6）照旧管缩进，margin 只负责这 6px 空隙。 */
 .tree-row {
   position: relative;
-  width: 100%;
+  width: auto;
+  margin: 0 6px;
   height: 28px;
   display: flex;
   align-items: center;
@@ -144,19 +199,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: var(--text);
   font-size: 13px;
   text-align: left;
-  border-radius: 0;
+  border-radius: var(--radius);
+  transition: color var(--ease), background var(--ease);
 }
 .tree-row:hover { background: var(--row-hover); }
-.tree-row.active { color: var(--primary-strong); background: var(--row-active); }
-.tree-row.active::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 2px;
-  background: var(--primary);
-}
+/* 选中态只用底色 + 深青文字，不再画左侧那条竖线 —— 竖线是给通栏色带定位用的，
+   圆角块自己就有边界，再加一条反而把圆角切开。 */
+.tree-row.active { color: var(--primary-strong); background: var(--row-active); font-weight: 500; }
 .tree-caret {
   width: 16px;
   height: 16px;
@@ -172,7 +221,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .tree-icon svg { width: 14px; height: 14px; }
 .tree-row.active .tree-icon { color: var(--primary-strong); }
 .tree-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tree-badge { flex: 0 0 auto; color: var(--primary); }
+.tree-badge { flex: 0 0 auto; color: var(--primary-strong); }
 .tree-badge svg { width: 12px; height: 12px; }
 .tree-rename {
   min-width: 0;
@@ -180,7 +229,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   height: 22px;
   padding: 0 4px;
   border: 1px solid var(--primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--control-bg);
   font-size: 13px;
 }
@@ -197,10 +246,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .ctx-menu {
   position: fixed;
   z-index: 60;
-  min-width: 152px;
-  padding: 4px;
+  min-width: 158px;
+  padding: 5px;
   border: 1px solid var(--menu-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--float-shadow);
 }
@@ -211,9 +260,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   align-items: center;
   gap: 8px;
   padding: 0 10px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 13px;
   text-align: left;
+  transition: color var(--ease), background var(--ease);
 }
 .ctx-item:hover { background: var(--row-hover); }
 .ctx-item.danger { color: var(--danger); }
@@ -223,14 +273,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* ── 大纲 ───────────────────────────────────────── */
 .outline-row {
-  width: 100%;
+  width: auto;
+  margin: 0 6px;
   display: flex;
-  padding: 4px 10px 4px 0;
+  padding: 4px 8px 4px 0;
   color: var(--text);
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.45;
   text-align: left;
-  border-radius: 0;
+  border-radius: var(--radius);
+  transition: color var(--ease), background var(--ease);
 }
 .outline-row:hover { color: var(--primary-strong); background: var(--row-hover); }
 .outline-row.level-1 { color: var(--text-strong); font-weight: 600; }
@@ -268,6 +320,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 /* ── 编辑区 ───────────────────────────────────────── */
+/* 和下面 Vditor 的工具栏同色，两条合起来读作一个「头部区域」，正文区才是那张纸。
+   标题栏用纸色、工具栏用灰色的话，中间会夹出一条突兀的灰带。 */
 .doc-head {
   height: 42px;
   flex: 0 0 auto;
@@ -276,6 +330,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   gap: 6px;
   padding: 0 10px;
   border-bottom: 1px solid var(--border);
+  background: var(--panel-bg);
 }
 .doc-title {
   min-width: 0;
@@ -283,20 +338,156 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   height: 28px;
   padding: 0 6px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text-strong);
   font-size: 14px;
   font-weight: 600;
+  transition: border-color var(--ease), background var(--ease), box-shadow var(--ease);
 }
 .doc-title:hover { border-color: var(--control-border); }
-.doc-title:focus { border-color: var(--primary); background: var(--control-bg); outline: none; }
+.doc-title:focus {
+  border-color: var(--primary);
+  background: var(--control-bg);
+  /* 2px 的实心 outline 画在标题这种大号字上太硬，换成一圈淡光晕。 */
+  box-shadow: var(--ring);
+  outline: none;
+}
 .doc-path { flex: 0 0 auto; max-width: 30%; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .doc-state { flex: 0 0 auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 
 .editor-host { min-height: 0; flex: 1; }
 /* Vditor 的根元素默认有圆角和边框，嵌在我们的面板里要去掉。 */
 .editor-host .vditor { height: 100% !important; border: 0; border-radius: 0; }
+
+/* ── 接管 Vditor 的配色 ─────────────────────────────
+ * Vditor 自己那套颜色全走 `.vditor` / `.vditor--dark` 上的变量，这里把它们逐个
+ * 接到上面那套 token 上。不接的话编辑器就是另一套审美：工具栏 #f6f8fa 的冷灰、
+ * 图标 hover 是 Google 蓝 #4285f4，和品牌青 #4fc9da 正面打架。
+ *
+ * 所有选择器都刻意加了 `:root` 前缀提权。index.css 和 content-theme 都是运行时
+ * append 进 <head> 的（injectVditorStyle / setTheme），**永远排在这份样式后面**，
+ * 同权重必输；`:root` 这一层把权重抬高一类就够压住了。
+ *
+ * 亮暗不用分叉：变量全部指向 :root 那两套，data-theme 一换自己就跟着走。
+ * 但 `.vditor--dark` 得一起列出来 —— 它在 index.css 里排在 `.vditor` 之后，
+ * 只写前者会被它按来源顺序盖回去。 */
+:root .vditor,
+:root .vditor--dark {
+  --border-color: var(--border);
+  --second-color: var(--muted);
+  --panel-background-color: var(--surface);
+  --panel-shadow: var(--float-shadow);
+  --toolbar-background-color: var(--panel-bg);
+  --toolbar-icon-color: var(--muted);
+  --toolbar-icon-hover-color: var(--primary-strong);
+  --textarea-background-color: var(--surface);
+  --textarea-text-color: var(--text);
+  --count-background-color: var(--fill);
+  --heading-border-color: var(--border);
+  --blockquote-color: var(--muted);
+  /* IR 模式下露在正文里的 Markdown 标记（#、**、[]()）。原来是 IntelliJ 那套
+     紫 #660e7a、纯蓝 #0000ff —— 标记只是脚手架，不该比正文还抢眼，一律压到
+     muted，只留标题的 # 用主色，方便扫层级。 */
+  --ir-heading-color: var(--primary-strong);
+  --ir-title-color: var(--muted);
+  --ir-bi-color: var(--muted);
+  --ir-link-color: var(--link);
+  --ir-bracket-color: var(--muted);
+  --ir-paren-color: var(--muted);
+}
+
+/* 工具栏下边界跟面板用同一根线，它才像界面的一部分而不是贴上去的一条。 */
+:root .vditor-toolbar { border-bottom: 1px solid var(--border); }
+
+/* 另外 9 处 Google 蓝是写死在 index.css 里的，没有变量可接，只能逐个点掉。 */
+:root .vditor-tip__content a,
+:root .vditor-speech--current,
+:root .vditor-linkcard__site,
+:root .vditor-wysiwyg sup[data-type="footnotes-ref"],
+:root .vditor-wysiwyg span[data-type="toc-h"],
+:root .vditor-ir__node[data-type="footnotes-ref"],
+:root .vditor-ir .vditor-toc span[data-type="toc-h"] { color: var(--link); }
+
+/* ── 正文排版 ───────────────────────────────────────
+ * `.vditor-reset` 同时套在编辑器正文、打印容器和截图容器上（Vditor.preview 用的是
+ * classList.add，不会顶掉我们自己的 class），所以这一段改一次，屏幕 / PDF / 图片
+ * 三处同时生效。 */
+:root .vditor-reset {
+  /* Vditor 写死了 "Helvetica Neue", "Luxi Sans", "Microsoft Yahei" 这套老字体栈，
+     和界面的 system-ui 不是一家人 —— 同一个窗口里两种字形最毁质感。 */
+  font-family: inherit;
+  color: var(--text);
+  font-size: 15px;
+  /* 1.5 对中文长文太挤，1.75 是中文正文比较舒服的档位。 */
+  line-height: 1.75;
+}
+
+/* 标题：压扁默认的上边距，拉开和上一段的呼吸，层级靠字重和字号拉开而不是靠线。 */
+:root .vditor-reset h1,
+:root .vditor-reset h2,
+:root .vditor-reset h3,
+:root .vditor-reset h4,
+:root .vditor-reset h5,
+:root .vditor-reset h6 { color: var(--text-strong); font-weight: 600; line-height: 1.4; }
+:root .vditor-reset h1, :root .vditor-reset h2 { border-bottom-color: var(--border); }
+:root .vditor-reset hr { background-color: var(--border); }
+
+/* 链接。Vditor 根本没给 `.vditor-reset a` 定过颜色，不管就是浏览器默认的
+   #0000EE 纯蓝 —— 又硬又跟整套青色系无关。改成主色同族的深青，下划线平时藏起来、
+   hover 才出现（行内元素的 border 不参与行盒高度，不会把正文行距顶开）。 */
+:root .vditor-reset a {
+  color: var(--link);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color var(--ease), border-color var(--ease);
+}
+:root .vditor-reset a:hover { color: var(--primary-strong); border-bottom-color: currentcolor; }
+
+/* 代码块。github 这套 hljs 主题把 `.hljs` 背景写成了纯白（content-theme 刻意把
+   `.hljs` 排除在外，整块背景都交给它定），于是代码块和纸面同色，连边界都没有。
+ *
+ * padding 取 1em 而不是随手写个 12px：行号列是 `.vditor-linenumber__rows` 绝对
+ * 定位到 `top: 1em` 的，这个 1em 就是它假定的 padding-top。hljs 自己后面又改成
+ * `3px 5px`，既挤又和行号基准错开 —— 写回 1em 两边才自洽。左边的 4em 在行号模式下
+ * 由 Vditor 用 !important 锁着，不用我们管。 */
+:root .vditor-reset pre > code {
+  padding: 1em;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--code-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+/* 行内代码。原来是 rgba(27, 31, 35, .05)，在白底上勉强能看出来，换成灰纸面就
+   彻底消失了 —— 得用一个实色。 */
+:root .vditor-reset code:not(.hljs):not(.highlight-chroma) {
+  padding: .15em .4em;
+  border-radius: var(--radius-sm);
+  background: var(--fill);
+  color: var(--text-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: .88em;
+}
+
+/* 引用块：左边那条竖线用主色，比原来的灰线更像「这是引用」而不是「这里有条线」。 */
+:root .vditor-reset blockquote {
+  color: var(--muted);
+  border-left: 3px solid var(--primary);
+  background: var(--fill-light);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: .6em 1em;
+}
+
+/* 表格。content-theme 的斑马纹写死成 #fafbfc / #fff 交替，在灰纸面上一行亮一行
+   更亮，看着像漏了底色 —— 接回 token 才对得上。 */
+:root .vditor-reset table tr { border-top-color: var(--border-strong); background-color: var(--surface); }
+:root .vditor-reset table tbody tr:nth-child(2n) { background-color: var(--fill-light); }
+:root .vditor-reset table td,
+:root .vditor-reset table th { border-color: var(--border-strong); }
+:root .vditor-reset table th { background-color: var(--fill); color: var(--text-strong); }
 
 .doc-blank {
   min-height: 0;
@@ -316,11 +507,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 8px 12px 8px 14px;
   font-size: 12px;
 }
-.banner-notice { color: var(--text-strong); background: var(--primary-soft); }
-.banner-conflict { color: var(--text-strong); background: var(--warning-soft); }
+/* 左边那条 3px 竖条用 inset shadow 画，不占布局 —— 换成 border-left 的话
+   整条 banner 会被挤窄 3px，和上下相邻元素就对不齐了。 */
+.banner-notice { color: var(--text-strong); background: var(--primary-soft); box-shadow: inset 3px 0 0 var(--primary); }
+.banner-conflict { color: var(--text-strong); background: var(--warning-soft); box-shadow: inset 3px 0 0 var(--warning); }
 .banner span { min-width: 0; flex: 1; }
 
 /* ── 弹窗 ───────────────────────────────────────── */
@@ -332,7 +525,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgb(0 0 0 / 32%);
+  background: rgb(17 22 27 / 34%);
+  /* 轻模糊，让弹窗和背后的三栏分开层。只 2px，重了会显得糊。 */
+  backdrop-filter: blur(2px);
 }
 .dialog {
   width: 100%;
@@ -341,7 +536,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 12px;
+  border: 1px solid var(--menu-border);
+  border-radius: var(--radius-xl);
   background: var(--surface);
   box-shadow: var(--dialog-shadow);
 }
@@ -359,24 +555,30 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   height: 32px;
   padding: 0 8px;
   border: 1px solid var(--control-border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--control-bg);
   font-size: 13px;
+  transition: border-color var(--ease), box-shadow var(--ease);
 }
 .input::placeholder { color: var(--placeholder); }
-.input:focus, .select:focus { border-color: var(--primary); outline: none; }
+.input:focus, .select:focus { border-color: var(--primary); box-shadow: var(--ring); outline: none; }
 
 .btn {
   height: 32px;
   padding: 0 14px;
   border: 1px solid var(--control-border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--control-bg);
   font-size: 13px;
+  font-weight: 500;
+  transition: color var(--ease), border-color var(--ease), background var(--ease), box-shadow var(--ease);
 }
 .btn:hover { border-color: var(--primary); color: var(--primary-strong); }
-.btn-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
-.btn-primary:hover { border-color: var(--primary-strong); background: var(--primary-strong); color: #fff; }
+.btn:active { transform: translateY(1px); }
+/* 主按钮**不能**用 --primary 当底配白字：#4fc9da 对白只有 1.8:1，按钮上的字
+   基本是糊的。亮色下压到深青配白字，暗色下反过来用亮青配深字，两边都过 4.5:1。 */
+.btn-primary { border-color: var(--btn-primary-bg); background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
+.btn-primary:hover { border-color: var(--btn-primary-hover); background: var(--btn-primary-hover); color: var(--btn-primary-fg); }
 .btn-text { border-color: transparent; background: transparent; }
 .btn-text:hover { background: var(--row-hover); }
 .btn-sm { height: 26px; padding: 0 10px; font-size: 12px; }
@@ -414,10 +616,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   gap: 6px;
   padding: 5px 6px;
   border: 1px solid var(--control-border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--control-bg);
+  transition: border-color var(--ease), box-shadow var(--ease);
 }
-.tags:focus-within { border-color: var(--primary); }
+.tags:focus-within { border-color: var(--primary); box-shadow: var(--ring); }
 .tag {
   display: inline-flex;
   align-items: center;
@@ -455,7 +658,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   align-items: flex-start;
   justify-content: center;
   padding: 10vh 24px 24px;
-  background: rgb(0 0 0 / 32%);
+  background: rgb(17 22 27 / 34%);
+  backdrop-filter: blur(2px);
 }
 .sp-panel {
   width: 100%;
@@ -464,7 +668,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 12px;
+  border: 1px solid var(--menu-border);
+  border-radius: var(--radius-xl);
   background: var(--surface);
   box-shadow: var(--dialog-shadow);
 }
@@ -493,7 +698,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   flex: 0 0 auto;
   padding: 1px 5px;
   border: 1px solid var(--control-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--muted);
   font-family: inherit;
   font-size: 11px;
@@ -508,9 +713,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   flex-direction: column;
   gap: 2px;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   color: var(--text);
   text-align: left;
+  transition: background var(--ease), box-shadow var(--ease);
 }
 .sp-item:hover { background: var(--row-hover); }
 /* 高亮项用主色描边而不是只换底色：鼠标 hover 和键盘高亮可能同时存在，
@@ -571,7 +777,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   flex: 0 0 auto;
   padding: 1px 6px;
   border: 1px solid var(--control-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--fill-light);
   color: var(--text-strong);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -586,8 +792,33 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   top: 0;
   left: -10000px;
   width: 760px;
-  /* 一律亮色：见 print.ts 里 printDocument 的说明。 */
+}
+
+/* 纸面 / 分享图一律按亮色出：见 print.ts 的 printDocument 和 preview-render.ts 的
+ * renderOffscreen。
+ *
+ * 光靠 `color-scheme: light` 和写死 background/color **不够** —— 上面那一大段
+ * `.vditor-reset` 规则（代码块、表格、引用、链接）全是 var()，而暗色模式下 :root
+ * 上的 token 是深色的。CSS 变量不吃 color-scheme，不在容器这一层把它们重设回亮色，
+ * 用户在暗色下导出 PDF 就会印出一块深色代码块、一张深色表格。
+ *
+ * 这些值是独立的一套纸面配色：对比度比屏幕上更硬（纸和投屏都会损失对比），
+ * 正文底仍用纯白（纸本来就是白的，灰底只会白费墨）。 */
+.fundoc-print-root,
+.fundoc-shot-page {
   color-scheme: light;
+  --surface: #fff;
+  --code-bg: #f4f6f9;
+  --fill: #edf0f4;
+  --fill-light: #f7f9fb;
+  --border: #e2e6ec;
+  --border-strong: #d4dae1;
+  --text: #1f2429;
+  --text-strong: #11161b;
+  --muted: #5a636e;
+  --primary: #4fc9da;
+  --primary-strong: #0e7384;
+  --link: #0e7384;
   background: #fff;
   color: #1a1a1a;
 }
@@ -640,10 +871,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   width: 800px;
   padding: 32px 36px;
   box-sizing: border-box;
-  /* 一律亮色：见 preview-render.ts 里 renderOffscreen 的说明。 */
-  color-scheme: light;
-  background: #fff;
-  color: #1a1a1a;
+  /* 亮色那一套 token 和 .fundoc-print-root 合在一起写，见上面「纸面 / 分享图」那段。 */
 }
 /* 图片没有滚动条，长代码行必须折行，否则右边直接被裁掉（和打印同理）。 */
 .fundoc-shot-page pre, .fundoc-shot-page code {
