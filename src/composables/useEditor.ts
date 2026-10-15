@@ -4,9 +4,11 @@
 import Vditor from 'vditor';
 import { assetUrl, storeAsset, toRenderable } from '../lib/asset';
 import { applyHeadingNumbers } from '../lib/heading-number';
+import { host } from '../lib/host';
+import { externalLinkUrl } from '../lib/link';
 import { installScrollSync, type ScrollSync } from '../lib/scroll-sync';
 import { injectVditorStyle, vditorBase } from '../lib/vditor';
-import type { EditorMode, Settings } from '../lib/types';
+import type { CodeTheme, EditorMode, Settings } from '../lib/types';
 
 export type EditorHandle = {
   /** 以存库形态设置内容；会先转成渲染形态。 */
@@ -97,7 +99,7 @@ export function createEditor(
     preview: {
       delay: 300,
       maxWidth: 1200,
-      hljs: { enable: true, lineNumber: true, style: dark ? 'github-dark' : 'github' },
+      hljs: { enable: true, lineNumber: true, style: hljsStyle(settings.codeTheme, dark) },
       math: {
         // KaTeX 而不是 MathJax：MathJax 的 tex-svg-full.js 单文件 6.5MB，
         // 而 KaTeX 全家桶（含 60 个字体文件）才 1.2MB，渲染还更快。
@@ -114,6 +116,11 @@ export function createEditor(
       // 自定义上传：图片存进 uTools 附件，正文里只留 fundoc-asset:// 引用。
       // 返回 null 表示「我已自己处理完」，返回字符串会被 Vditor 当成错误提示。
       handler: (files) => handleUpload(files, vditor, callbacks.onNotice),
+    },
+    link: {
+      // 接管点链接。Vditor 默认走 `window.open`，在 uTools 的 BrowserView 里被拦掉，
+      // 表现就是「点了没反应」—— 得交给 shellOpenExternal（见 host.openExternal）。
+      click: openLink,
     },
     after: () => {
       ready = true;
@@ -153,10 +160,12 @@ export function createEditor(
     getContent: () => (ready ? vditor.getValue() : initialMarkdown),
     applyTheme: (isDarkNow) => {
       if (!ready) return;
+      // 第三个参数换的是全局那张 hljs 样式表（`#vditorHljsStyle`），所以「代码块配色」
+      // 的设置变了也走这里重贴一次。
       vditor.setTheme(
         isDarkNow ? 'dark' : 'classic',
         isDarkNow ? 'dark' : 'light',
-        isDarkNow ? 'github-dark' : 'github',
+        hljsStyle(settings.codeTheme, isDarkNow),
         `${cdn}/dist/css/content-theme`,
       );
     },
@@ -271,3 +280,66 @@ export const MODE_LABELS: Record<EditorMode, string> = {
   ir: '即时渲染',
   sv: '分屏预览',
 };
+
+/**
+ * 代码块配色表。设置面板直接遍历它渲染下拉框。
+ *
+ * `light` / `dark` 是 highlight.js 样式文件名（不含 `.min.css`），Vditor 会拼成
+ * `<cdn>/dist/js/highlight.js/styles/<name>.min.css`。名字必须在 Vditor 内置的
+ * `CODE_THEME` 白名单里，不在的话它会**静默回退到 github**；这几个都已核对过，
+ * 对应文件也都在 public/vditor/dist 里（sync-vditor.mjs 把整个 styles 目录都带上了）。
+ *
+ * 只收亮暗成对的主题，外加两个经典深色款 —— 深色款亮暗都用同一个文件，这是故意的：
+ * monokai / nord 没有亮色版本，硬配一个别的主题反而让人以为设置没生效。
+ */
+export const CODE_THEMES: Array<{
+  value: CodeTheme;
+  label: string;
+  light: string;
+  dark: string;
+}> = [
+  { value: 'follow', label: '跟随界面', light: 'github', dark: 'github-dark' },
+  { value: 'github', label: 'GitHub', light: 'github', dark: 'github-dark' },
+  { value: 'atom-one', label: 'Atom One', light: 'atom-one-light', dark: 'atom-one-dark' },
+  { value: 'tokyo-night', label: 'Tokyo Night', light: 'tokyo-night-light', dark: 'tokyo-night-dark' },
+  {
+    value: 'stackoverflow',
+    label: 'Stack Overflow',
+    light: 'stackoverflow-light',
+    dark: 'stackoverflow-dark',
+  },
+  { value: 'monokai', label: 'Monokai（始终深色）', light: 'monokai', dark: 'monokai' },
+  { value: 'nord', label: 'Nord（始终深色）', light: 'nord', dark: 'nord' },
+];
+
+/**
+ * 代码块配色 → highlight.js 样式文件名。
+ *
+ * `follow` 用 github 那一对，只取它的**语法着色**；底色由 style.css 里
+ * `[data-code-theme='follow']` 那条规则盖成我们自己的 --code-bg。
+ *
+ * @param theme 设置里的选项。
+ * @param dark 当前是否暗色。
+ */
+function hljsStyle(theme: CodeTheme, dark: boolean): string {
+  const entry = CODE_THEMES.find((item) => item.value === theme) ?? CODE_THEMES[0];
+  return dark ? entry.dark : entry.light;
+}
+
+/**
+ * 打开正文里的一个超链接。
+ *
+ * Vditor 三种模式传进来的元素形状不同：
+ * - wysiwyg / 分屏预览：`<a>` 本身，地址在 `href` 上；
+ * - 即时渲染（ir）：`.vditor-ir__marker--link` 那个 `<span>`，地址是它的**文本**。
+ *
+ * 所以两个地方都要看。Vditor 在前两种模式里已经 `preventDefault()` 过了。
+ * 地址能不能开、要不要补协议头，交给 lib/link.ts。
+ *
+ * @param element Vditor 交过来的元素。ir 那条路是 `querySelector` 的结果，类型上
+ *   声明成 `Element` 但运行时可能是 null，所以这里按可空处理。
+ */
+function openLink(element: Element | null): void {
+  const url = externalLinkUrl(element?.getAttribute('href') ?? element?.textContent);
+  if (url) host.openExternal(url);
+}

@@ -63,6 +63,12 @@ watch(
 
 watch(dark, (value) => editor?.applyTheme(value));
 
+// 代码块配色换了。hljs 的样式表是全局一张，换它要走 setTheme —— applyTheme 里顺手办了。
+watch(
+  () => state.settings.codeTheme,
+  () => editor?.applyTheme(dark.value),
+);
+
 // 开关标题编号不改 DOM 结构，编辑器里的观察器看不见，得推一把。
 watch(
   () => state.settings.headingNumber,

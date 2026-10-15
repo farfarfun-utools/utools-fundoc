@@ -58,11 +58,30 @@ export type EditorMode = 'wysiwyg' | 'ir' | 'sv';
 /** 外观：跟随 uTools / 强制亮 / 强制暗。 */
 export type ThemeMode = 'light' | 'dark' | 'system';
 
+/**
+ * 代码块配色。
+ *
+ * `follow` 是「跟随界面」：底色用我们自己的灰阶（亮色下比纸面凹一档、暗色下比纸面深一档），
+ * 只有语法着色交给 highlight.js 的 github 主题。其余各项是 highlight.js 自带的成套配色，
+ * 底色也归它管 —— 所以选了 monokai 这类深色配色后，亮色界面里也会出现深色代码块，那是它
+ * 本来的样子。亮暗各对应哪个文件见 useEditor.ts 的 CODE_THEMES。
+ */
+export type CodeTheme =
+  | 'follow'
+  | 'github'
+  | 'atom-one'
+  | 'tokyo-night'
+  | 'stackoverflow'
+  | 'monokai'
+  | 'nord';
+
 /** 全局设置，整条存在 `dbStorage` 里（单条远不到 1MB）。 */
 export type Settings = {
   /** 编辑器默认模式。 */
   mode: EditorMode;
   theme: ThemeMode;
+  /** 代码块配色。 */
+  codeTheme: CodeTheme;
   /** 正文首个一级标题变化时，是否同步更新节点名。 */
   syncTitleFromHeading: boolean;
   /** 大纲与正文里的标题是否自动编号。只影响显示，不写进 Markdown（lib/heading-number.ts）。 */
@@ -79,6 +98,7 @@ export type Settings = {
 export const DEFAULT_SETTINGS: Settings = {
   mode: 'ir',
   theme: 'system',
+  codeTheme: 'follow',
   syncTitleFromHeading: true,
   headingNumber: true,
   autoSaveDelay: 800,
