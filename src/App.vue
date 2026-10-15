@@ -73,6 +73,9 @@ function startResize(which: 'tree' | 'outline', event: PointerEvent): void {
 // matchMedia 变化，比纯 CSS 媒体查询可靠。
 watchEffect(() => {
   document.documentElement.dataset.theme = dark.value ? 'dark' : 'light';
+  // 代码块配色也写一份到 <html> 上。CSS 只需要分辨「跟随界面」和「用主题自带的底色」
+  // 两种情况，但原样写出来，以后想给某个主题单独补规则不用再改这里。
+  document.documentElement.dataset.codeTheme = state.settings.codeTheme;
 });
 
 onMounted(initialize);

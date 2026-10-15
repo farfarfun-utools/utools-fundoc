@@ -119,6 +119,16 @@ export type Host = {
    */
   copyImage(bytes: Uint8Array, mime: string): Promise<boolean>;
   showNotification(body: string): void;
+  /**
+   * 用系统默认浏览器打开一个外部链接。
+   *
+   * 正文里的超链接必须走这条路，不能靠 `<a>` 的默认行为或 `window.open`：插件页跑在
+   * Electron 的 BrowserView 里，这两条要么被 uTools 拦掉（表现就是「点了没反应」），
+   * 要么真的把插件页本身导航走 —— 整个界面连同还没保存的编辑内容一起没了。
+   *
+   * @param url 绝对 URL，协议由调用方校验（见 useEditor 的 openLink）。
+   */
+  openExternal(url: string): void;
   /** 保存文件对话框。用户取消返回 undefined；浏览器垫片里永远 undefined。 */
   showSaveDialog(options: Parameters<typeof utools.showSaveDialog>[0]): string | undefined;
   /** 打开文件/目录对话框。用户取消返回 undefined；浏览器垫片里永远 undefined。 */
@@ -278,6 +288,9 @@ export function createShimHost(): Host {
       }
     },
     showNotification: (body) => console.warn('[fundoc]', body),
+    // 浏览器里新标签页就是「外部」。noopener 是必须的：不加的话打开的页面能通过
+    // window.opener 反过来操作我们这一页。
+    openExternal: (url) => void globalThis.open?.(url, '_blank', 'noopener,noreferrer'),
     // 浏览器里没有原生文件对话框。返回 undefined（= 用户取消）让调用方走各自的
     // 降级分支，而不是在这里假装成功 —— 假装成功后面一定会写到不存在的路径上。
     showSaveDialog: () => undefined,
@@ -309,6 +322,8 @@ function createNativeHost(api: typeof utools): Host {
     // utools.copyImage 是同步的，签名也只收字节/路径，不收 MIME —— 它自己按内容认。
     copyImage: async (bytes) => api.copyImage(bytes),
     showNotification: (body) => api.showNotification(body),
+    // 返回 Promise，但没人关心结果 —— 失败时 uTools 自己不提示，我们也拿不到原因。
+    openExternal: (url) => void api.shellOpenExternal(url),
     showSaveDialog: (options) => api.showSaveDialog(options),
     showOpenDialog: (options) => api.showOpenDialog(options),
   };

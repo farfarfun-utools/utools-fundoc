@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useDocs } from '../composables/useDocs';
-import { MODE_LABELS } from '../composables/useEditor';
+import { CODE_THEMES, MODE_LABELS } from '../composables/useEditor';
 import { formatKeys, SHORTCUTS } from '../composables/useShortcuts';
 import type { EditorMode, ThemeMode } from '../lib/types';
 
@@ -57,6 +57,20 @@ async function clean(): Promise<void> {
               {{ item.label }}
             </option>
           </select>
+        </div>
+
+        <div class="field">
+          <div class="field-label"><span>代码块配色</span></div>
+          <select v-model="state.settings.codeTheme" class="select">
+            <option v-for="item in CODE_THEMES" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </option>
+          </select>
+          <p class="field-hint">
+            「跟随界面」只借用 GitHub 的语法着色，底色跟着亮 / 暗主题走。
+            选具体主题时底色归主题自己管 —— Monokai、Nord 没有亮色版本，
+            亮色界面里也是深色代码块。打印和导出的图片不受这里影响，一律按亮色出。
+          </p>
         </div>
 
         <div class="field">
