@@ -35,18 +35,30 @@ const KEEP = [
   'js/highlight.js',  // 2.1MB  代码块高亮
   'js/icons',         //  72KB  工具栏图标
   // —— 按需 ——
-  'js/mermaid',       // 3.5MB  流程图/时序图，文档类高频，保留
+  //
+  // 这一组都是「写文档偶尔要画张图」的渲染器。放进来不等于每次都加载 ——
+  // Vditor 的各个 render 函数先 querySelector 对应的 `.language-xxx`，一个都没有就
+  // 直接返回，脚本是正文里真出现了那种围栏才去取的。所以代价只是插件包大了 2.3MB，
+  // 不影响打开速度。
+  'js/mermaid',       // 3.5MB  ```mermaid    流程图 / 时序图 / 甘特图
+  'js/echarts',       // 1.0MB  ```echarts    图表，吃 ECharts 的 option JSON
+  'js/markmap',       // 840KB  ```mindmap    脑图，拿缩进列表当大纲
+  'js/abcjs',         // 360KB  ```abc        五线谱，ABC 记谱法
+  'js/flowchart.js',  // 128KB  ```flowchart  流程图，flowchart.js 那套语法
 ];
 
 // i18n 整目录只有 56KB，但没必要把十几种语言都打进去。
 const KEEP_I18N = ['zh_CN.js', 'en_US.js'];
 
-// 明确砍掉的（省 11.9MB），列在这里是为了让「为什么没有它」有据可查：
+// 明确砍掉的（省 9.6MB），列在这里是为了让「为什么没有它」有据可查：
 //   js/mathjax 6.5MB  —— 与 KaTeX 二选一。KaTeX 已覆盖绝大多数写作需求，且 Vditor 自带
 //                        mhchem 补上了化学式。代价是复杂 \begin{align} 嵌套和自定义
 //                        \newcommand 体系不如 MathJax，详见 docs/design.md §6.2。
-//   js/graphviz 2.0MB, js/echarts 1.0MB, js/markmap 840KB, js/abcjs 360KB,
-//   js/smiles-drawer 252KB, js/flowchart.js 128KB, js/wavedrom 92KB, js/plantuml 36KB
+//   js/graphviz 2.0MB —— 上面那一组里唯一没要的：它是 Emscripten 编译的 Graphviz，一个人
+//                        顶上三个渲染器的体积，而 DOT 图能画的东西 mermaid 基本都能画。
+//   js/smiles-drawer 252KB（化学结构式）、js/wavedrom 92KB（数字时序波形）、
+//   js/plantuml 36KB（要连 plantuml.com 的公网服务渲染，离线插件里用不了）
+//                     —— 都太专了，写文档的人几乎碰不到。
 
 async function directorySize(dir) {
   let total = 0;

@@ -374,17 +374,29 @@ ${options.cdn}/dist/images/emoji/...
 | `js/i18n` | 56KB | 只留 `zh_CN.js`（+ `en_US.js` 以防万一） |
 | `css` | 28KB | 内容主题 |
 
-**按需（v1 建议保留 mermaid）**
+**按需（约 5.8MB，全留）**
 
-| 目录 | 体积 | 判断 |
+| 目录 | 体积 | 围栏语言 | 判断 |
+|---|---|---|---|
+| `js/mermaid` | 3.5MB | ` ```mermaid ` | 流程图 / 时序图 / 甘特图，文档类高频 |
+| `js/echarts` | 1.0MB | ` ```echarts ` | 图表，吃 ECharts 的 option JSON |
+| `js/markmap` | 840KB | ` ```mindmap ` | 脑图，拿缩进列表当大纲 |
+| `js/abcjs` | 360KB | ` ```abc ` | 五线谱，ABC 记谱法 |
+| `js/flowchart.js` | 128KB | ` ```flowchart ` | 流程图，flowchart.js 那套语法 |
+
+**这一组的加载是懒的**，所以「留」的代价只在包体积上，不在启动速度上：Vditor 的每个
+render 函数先 `querySelector('.language-xxx')`，一个都没有就直接返回，`<script>` 是正文
+里真出现了那种围栏才去取的。绝大多数文档一个都不会命中。
+
+**明确砍掉（省 9.6MB）**
+
+| 目录 | 体积 | 为什么 |
 |---|---|---|
-| `js/mermaid` | 3.5MB | 流程图/时序图，文档类高频，**留** |
-| `js/echarts` | 1.0MB | 表格转图表，低频，v1 砍 |
-
-**明确砍掉（省 11.9MB）**
-
-`js/mathjax` 6.5MB、`js/graphviz` 2.0MB、`js/markmap` 840KB、`js/abcjs` 360KB、
-`js/smiles-drawer` 252KB、`js/flowchart.js` 128KB、`js/wavedrom` 92KB、`js/plantuml` 36KB。
+| `js/mathjax` | 6.5MB | 与 KaTeX 二选一，见下 |
+| `js/graphviz` | 2.0MB | 按需那一组里唯一没要的：Emscripten 编译的 Graphviz，一个人顶上三个渲染器的体积，而 DOT 图能画的东西 mermaid 基本都能画 |
+| `js/smiles-drawer` | 252KB | 化学结构式，太专 |
+| `js/wavedrom` | 92KB | 数字时序波形，太专 |
+| `js/plantuml` | 36KB | 要连 `plantuml.com` 的公网服务渲染，离线插件里本来就用不了 |
 
 砍 MathJax 是个权衡：它和 KaTeX 二选一（Vditor 的 `preview.math.engine` 支持切换），
 但它一个人就 6.5MB，而 KaTeX 1.5MB 已覆盖绝大多数写作需求，且 Vditor 自带 `mhchem` 扩展
@@ -396,8 +408,14 @@ ${options.cdn}/dist/images/emoji/...
 ——手工拷会在升级 Vditor 时悄悄留下旧版资源，而 KaTeX 的 CSS 和 fonts 版本错配表现为公式
 "渲染出来但字形是方块"，极难排查。脚本放 `scripts/sync-vditor.mjs`，在 `build.sh` 里调用。
 
-最终插件体积约 11MB。对比：uTools 插件没有体积硬限制，而这 11MB 全是本地资源，换来的是
-断网也能渲染公式——对文档类插件是正确的取舍。
+最终插件体积约 13MB。对比：uTools 插件没有体积硬限制，而这 13MB 全是本地资源，换来的是
+断网也能渲染公式和图表——对文档类插件是正确的取舍。
+
+**已知缺口**：打印 / 导出 PDF / 复制为图片走的离屏渲染（`lib/preview-render.ts`）只等公式
+（判据是 KaTeX 给 `.language-math` 挂的 `data-math`），不等上面这些图。图少、机器慢的时候
+可能在图画完之前就截了帧，导出的 PDF / 图片里留下原始围栏代码。补这个判据不止是「再等一个
+属性」：echarts 和 flowchart 渲染失败时不写 `data-processed`，markmap 更是直接把原来的
+`<code>` 节点换掉、从不写这个属性——四个渲染器四套完成信号，得逐个对。留到单独一轮做。
 
 ### 6.3 Vditor 关键配置
 
