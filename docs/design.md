@@ -806,7 +806,7 @@ watch `state.markdown`——后者会和编辑器自己的 `input` 回调互相�
 
 ```json
 {
-  "pluginName": "FunDoc 文档",
+  "pluginName": "文档笔记 FunDoc",
   "main": "dist/index.html",
   "preload": "preload.js",
   "features": [

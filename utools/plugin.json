@@ -1,5 +1,5 @@
 {
-  "pluginName": "FunDoc 文档",
+  "pluginName": "文档笔记 FunDoc",
   "version": "0.1.0",
   "description": "本地 Markdown 文档管理，支持 LaTeX 公式、多级目录与跨设备同步",
   "author": "farfarfun",
