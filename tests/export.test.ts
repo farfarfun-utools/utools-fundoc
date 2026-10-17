@@ -7,6 +7,7 @@ import {
   uniqueSegment,
   type ExportIO,
 } from '../src/lib/export';
+import { MANIFEST_NAME, MANIFEST_VERSION, parseManifest } from '../src/lib/manifest';
 import type { NodeMeta } from '../src/lib/types';
 
 function node(nodeId: string, parentId: string | null, options: Partial<NodeMeta> = {}): NodeMeta {
@@ -41,6 +42,15 @@ const textOf = (plan: ReturnType<typeof buildExportPlan>, path: string) => {
   if (!file || file.kind !== 'text') throw new Error(`计划里没有文本文件 ${path}`);
   return file.text;
 };
+
+/**
+ * 计划里的文档路径，滤掉清单文件。
+ *
+ * 下面那批用例要钉的是「哪些文档进了包、路径长什么样」，清单跟着目录导出一起出现会把
+ * 每条期望都污染一遍；清单该不该在、里面写了什么，由「清单」那一组用例专门盯。
+ */
+const docPaths = (plan: ReturnType<typeof buildExportPlan>) =>
+  plan.files.map((file) => file.path).filter((path) => path !== MANIFEST_NAME);
 
 describe('extensionFor', () => {
   it('认得常见图片类型', () => {
@@ -157,7 +167,7 @@ describe('buildExportPlan', () => {
     const plan = buildExportPlan(metas, 'math', io());
 
     expect(plan.rootName).toBe('数学');
-    expect(plan.files.map((file) => file.path).sort()).toEqual([
+    expect(docPaths(plan).sort()).toEqual([
       '导言.md',
       '线性代数/向量.md',
     ]);
@@ -173,14 +183,14 @@ describe('buildExportPlan', () => {
     const plan = buildExportPlan(metas, null, io());
 
     expect(plan.rootName).toBe('FunDoc');
-    expect(plan.files.map((file) => file.path).sort()).toEqual(['数学/向量.md', '日记.md']);
+    expect(docPaths(plan).sort()).toEqual(['数学/向量.md', '日记.md']);
   });
 
   it('空目录也留在 dirs 里，导出后结构跟界面一致', () => {
     const metas = [dir('math', null, { name: '数学' }), dir('empty', 'math', { name: '空的' })];
     const plan = buildExportPlan(metas, 'math', io());
 
-    expect(plan.files).toEqual([]);
+    expect(docPaths(plan)).toEqual([]);
     expect(plan.dirs).toEqual(['空的']);
   });
 
@@ -191,7 +201,7 @@ describe('buildExportPlan', () => {
     ];
     const plan = buildExportPlan(metas, null, io({ a: '第一篇', b: '第二篇' }));
 
-    expect(plan.files.map((file) => file.path)).toEqual(['周报.md', '周报 (2).md']);
+    expect(docPaths(plan)).toEqual(['周报.md', '周报 (2).md']);
     expect(textOf(plan, '周报.md')).toBe('第一篇');
     expect(textOf(plan, '周报 (2).md')).toBe('第二篇');
   });
@@ -205,7 +215,7 @@ describe('buildExportPlan', () => {
     ];
     const plan = buildExportPlan(metas, null, io());
 
-    expect(plan.files.map((file) => file.path).sort()).toEqual(['x/周报.md', 'y/周报.md']);
+    expect(docPaths(plan).sort()).toEqual(['x/周报.md', 'y/周报.md']);
   });
 
   it('文件名里的斜杠不会多造出一层目录', () => {
@@ -218,7 +228,7 @@ describe('buildExportPlan', () => {
 
   it('找不到 rootId 时返回空计划，而不是悄悄导出整个库', () => {
     const plan = buildExportPlan([node('a', null)], 'ghost', io());
-    expect(plan).toEqual({ rootName: '未命名', dirs: [], files: [], missingAssets: 0 });
+    expect(plan).toEqual({ rootName: '未命名', dirs: [], files: [], missingAssets: 0, manifest: false });
   });
 
   // 同步事故造出的环：a 的父亲是 b，b 的父亲是 a。按 parentId 递归一个都遍历不到，
@@ -232,12 +242,12 @@ describe('buildExportPlan', () => {
     ];
     const plan = buildExportPlan(metas, null, io());
 
-    const paths = plan.files.map((file) => file.path).sort();
+    const paths = docPaths(plan).sort();
     expect(paths).toContain('正常文档.md');
     // buildTree 把环上的节点连同它们的子孙一律挂回根下，所以这篇落在顶层而不是 A/ 下面。
     // 层级变了可以接受，文档丢了不行。
     expect(paths).toContain('环里的文档.md');
-    expect(plan.files).toHaveLength(2);
+    expect(docPaths(plan)).toHaveLength(2);
     // A、B 被修成两个空的顶层目录，仍然导得出来。
     expect(plan.dirs.sort()).toEqual(['A', 'B']);
   });
@@ -245,7 +255,49 @@ describe('buildExportPlan', () => {
   it('父节点不存在的孤儿节点也导得出来', () => {
     const metas = [node('orphan', 'gone', { name: '孤儿' })];
     const plan = buildExportPlan(metas, null, io());
-    expect(plan.files.map((file) => file.path)).toEqual(['孤儿.md']);
+    expect(docPaths(plan)).toEqual(['孤儿.md']);
+  });
+
+  // 清单（fundoc.json）是「导出能原样导回来」的那半边：.md 只带得走正文和层级，关键词、
+  // 同级排序、时间戳都在 meta@ 里。单篇导出不带它 —— 那种场景是「把这篇发给别人」，
+  // 多出一个 json 只会让人莫名其妙。
+  describe('清单', () => {
+    it('单篇导出不带清单', () => {
+      const metas = [node('a', null, { name: '随笔' })];
+      const plan = buildExportPlan(metas, 'a', io());
+
+      expect(plan.manifest).toBe(false);
+      expect(plan.files.map((file) => file.path)).toEqual(['随笔.md']);
+    });
+
+    it('目录和整库导出带清单，路径和包里的文件对得上', () => {
+      const metas = [
+        dir('math', null, { name: '数学', order: 1000 }),
+        node('vector', 'math', { name: '向量', order: 2000, keywordEnabled: true, keywords: ['向量'] }),
+        node('diary', null, { name: '日记', order: 3000 }),
+      ];
+      const plan = buildExportPlan(metas, null, io(), { now: 1700000000000 });
+
+      expect(plan.manifest).toBe(true);
+      const manifest = parseManifest(textOf(plan, MANIFEST_NAME));
+      expect(manifest?.fundoc).toBe(MANIFEST_VERSION);
+      expect(manifest?.exportedAt).toBe(1700000000000);
+
+      // 认领包里的文件全靠 path：清单里每条文档记录都要能在 files 里找到对应的那个。
+      const paths = new Set(docPaths(plan));
+      for (const item of manifest?.nodes ?? []) {
+        if (item.type === 'doc') expect(paths.has(item.path)).toBe(true);
+      }
+      expect(manifest?.nodes.map((item) => item.path).sort()).toEqual([
+        '数学',
+        '数学/向量.md',
+        '日记.md',
+      ]);
+
+      // 带不走的那几样就是清单存在的理由，逐个确认它们真的写进去了。
+      const vector = manifest?.nodes.find((item) => item.nodeId === 'vector');
+      expect(vector).toMatchObject({ name: '向量', order: 2000, keywordEnabled: true, keywords: ['向量'] });
+    });
   });
 
   describe('图片', () => {

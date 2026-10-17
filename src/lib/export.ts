@@ -4,6 +4,12 @@
 // 只能触发下载，两个落地方式完全不同。把计算和落盘分开，计算部分就能被单测覆盖，
 // 而「中文文件名在 Windows 上变成乱码」「两篇同名文档互相覆盖」这类问题恰恰全在计算这一侧。
 import { ASSET_SCHEME, collectAssetIds } from './asset';
+import {
+  MANIFEST_NAME,
+  MANIFEST_VERSION,
+  serializeManifest,
+  type ManifestNode,
+} from './manifest';
 import { buildTree } from './tree';
 import type { NodeMeta, TreeNode } from './types';
 
@@ -112,6 +118,8 @@ export type ExportPlan = {
   files: ExportFile[];
   /** 正文引用了、但库里已经没有的附件数。非 0 时界面要提示，别让用户以为图片导丢了。 */
   missingAssets: number;
+  /** 这份导出里是否带了 `fundoc.json`（单篇 `.md` 导出不带）。界面据此说明「能原样导回来」。 */
+  manifest: boolean;
 };
 
 export type ExportIO = {
@@ -163,12 +171,14 @@ function findNode(nodes: TreeNode[], nodeId: string): TreeNode | null {
  * @param metas 全部节点元数据。
  * @param rootId 导出哪个节点：文档则导出单篇，目录则连带全部子孙，null 表示整个库。
  * @param io 正文与附件的读取方式。
+ * @param options.now 清单里的导出时间，便于测试固定输出。
  * @returns 待写文件清单。节点不存在时返回空计划。
  */
 export function buildExportPlan(
   metas: NodeMeta[],
   rootId: string | null,
   io: ExportIO,
+  { now = Date.now() }: { now?: number } = {},
 ): ExportPlan {
   // 走 buildTree 装好的树，而不是自己按 parentId 过滤：同步事故造出的环（A→B→A）里，
   // 两个节点的 parentId 都不是 null，按 parentId 递归会一个都遍历不到 —— 导出悄悄丢文档，
@@ -176,11 +186,13 @@ export function buildExportPlan(
   const { roots } = buildTree(metas);
   const root = rootId ? findNode(roots, rootId) : null;
   if (rootId && !root) {
-    return { rootName: '未命名', dirs: [], files: [], missingAssets: 0 };
+    return { rootName: '未命名', dirs: [], files: [], missingAssets: 0, manifest: false };
   }
 
   const files: ExportFile[] = [];
   const dirs: string[] = [];
+  /** 清单条目，和下面写出去的文件一一对应（path 完全相同）。 */
+  const manifestNodes: ManifestNode[] = [];
   /** assetId → 导出后的图片文件名。同一张图被多篇引用时只写一次。 */
   const assetNames = new Map<string, string>();
   const assetUsed = new Set<string>();
@@ -208,17 +220,34 @@ export function buildExportPlan(
     return name;
   };
 
+  /** 登记一条清单记录。文件名洗过、同层去重过，节点名则原样留着 —— 两者可以不同。 */
+  const remember = (meta: NodeMeta, path: string): void => {
+    manifestNodes.push({
+      nodeId: meta.nodeId,
+      type: meta.type,
+      name: meta.name,
+      path,
+      order: meta.order,
+      createdAt: meta.createdAt,
+      updatedAt: meta.updatedAt,
+      ...(meta.keywordEnabled ? { keywordEnabled: true } : {}),
+      ...(meta.keywords?.length ? { keywords: [...meta.keywords] } : {}),
+    });
+  };
+
   /** 把一篇文档摊成一个 .md 文件。`segments` 是它所在目录的路径段。 */
   const emitDoc = (meta: NodeMeta, segments: string[], used: Set<string>): void => {
     const name = uniqueSegment(used, sanitizeSegment(meta.name), '.md');
     const markdown = io.bodyOf(meta.nodeId);
     // 先问一遍附件，顺带把图片文件登记进 files。
     for (const assetId of collectAssetIds(markdown)) nameOf(assetId);
+    const path = [...segments, name].join('/');
     files.push({
-      path: [...segments, name].join('/'),
+      path,
       kind: 'text',
       text: rewriteAssets(markdown, segments.length, (id) => assetNames.get(id) || null),
     });
+    remember(meta, path);
   };
 
   const walk = (children: TreeNode[], segments: string[]): void => {
@@ -232,6 +261,7 @@ export function buildExportPlan(
       const name = uniqueSegment(used, sanitizeSegment(child.name));
       const next = [...segments, name];
       dirs.push(next.join('/'));
+      remember(child, next.join('/'));
       walk(child.children, next);
     }
   };
@@ -250,5 +280,22 @@ export function buildExportPlan(
       ? `${sanitizeSegment(root.name)}.md`
       : sanitizeSegment(root?.name ?? 'FunDoc');
 
-  return { rootName, dirs, files, missingAssets };
+  // 单篇导出不写清单：那条路的产物就该是一个能直接丢给别的编辑器的 `.md`，旁边多一个
+  // JSON 反而碍事（而且保存对话框一次只给一个路径，没地方放第二个文件）。
+  // 目录 / 全库导出一律写 —— 还原得靠它，而「有时有有时没有」最难排查。
+  const manifest = root?.type !== 'doc';
+  if (manifest) {
+    files.push({
+      path: MANIFEST_NAME,
+      kind: 'text',
+      text: serializeManifest({
+        fundoc: MANIFEST_VERSION,
+        exportedAt: now,
+        root: rootName,
+        nodes: manifestNodes,
+      }),
+    });
+  }
+
+  return { rootName, dirs, files, missingAssets, manifest };
 }

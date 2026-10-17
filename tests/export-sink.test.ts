@@ -19,6 +19,8 @@ const plan = (overrides: Partial<ExportPlan> = {}): ExportPlan => ({
   dirs: [],
   files: [{ path: '文档.md', kind: 'text', text: '# 标题' }],
   missingAssets: 0,
+  // 这一层测的是「怎么落盘」，和清单无关；单篇导出本来就不带清单。
+  manifest: false,
   ...overrides,
 });
 
@@ -31,6 +33,7 @@ const planWithAsset = (): ExportPlan => ({
     { path: 'assets/1.png', kind: 'binary', bytes: png(), mime: 'image/png' },
   ],
   missingAssets: 0,
+  manifest: false,
 });
 
 /**
