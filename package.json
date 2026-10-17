@@ -12,6 +12,7 @@
     "sync:vditor": "node scripts/sync-vditor.mjs",
     "test": "pnpm run build:preload && vitest run",
     "e2e": "node scripts/e2e.mjs",
+    "screenshots": "node scripts/screenshots.mjs",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --no-fix --quiet",
     "typecheck": "vue-tsc --noEmit"

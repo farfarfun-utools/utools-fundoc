@@ -55,7 +55,7 @@ uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式�
 | <img src="docs/screenshots/dark.png" alt="深色主题"> | |
 | 浅色 / 深色 / 跟随 uTools | |
 
-> 图里的文档都是为截图造的示例内容。
+> 图由 `pnpm screenshots` 生成，文档内容都是为截图编的。
 
 ## 安装
 
@@ -83,6 +83,7 @@ pnpm run sync:vditor   # 从 node_modules 白名单同步 Vditor 资源到 publi
 pnpm run dev           # 浏览器预览，数据落在 localStorage
 pnpm test              # vitest
 pnpm e2e               # 真浏览器里跑一遍（见下），没装 Chromium 会跳过
+pnpm screenshots       # 重新生成 README 里的截图，同样没浏览器就跳过
 pnpm typecheck
 pnpm lint
 sh build.sh            # 校验并产出 utools/dist/

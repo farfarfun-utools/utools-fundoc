@@ -1,0 +1,78 @@
+name: Screenshots
+
+# README 里的图是最容易过期的东西：改完界面没人记得重截一遍，而图和实物对不上
+# 比没有图更糟。所以每打一个版本标签就重跑一遍，图真的变了才提交回 master。
+#
+# 触发用的是标签推送而不是 release 事件：release 如果是工作流里用 GITHUB_TOKEN
+# 建的，GitHub 不会再为它派发新的事件，挂在 release 上的工作流根本不会被唤醒。
+on:
+  push:
+    tags: ['v*']
+  # 改完界面想立刻刷新 README 里的图时，手动点一下。
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  # 两次运行同时往 master 推会撞车，排队跑，且不取消前一次（它可能已经在推了）。
+  group: screenshots
+  cancel-in-progress: false
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      # 标签事件默认检出的是标签指向的那个游离状态，而我们要把图提交回分支，
+      # 所以直接检出 master。
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      # corepack 按 package.json#packageManager 取 pnpm 版本，和本地、和 CI 保持一致。
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          # scripts/cdp.mjs 用的是全局 WebSocket，Node 22 才稳定提供。
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # runner 自带的字体没有中日韩和 emoji，缺了界面全是豆腐块。
+      - name: Install fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk fonts-noto-color-emoji
+          fc-cache -f
+
+      # 没有浏览器时 scripts/screenshots.mjs 会跳过并正常退出（本地不该因为没装
+      # Chrome 就跑不了别的命令），但在 CI 里「静默跳过」等于这个工作流白跑，
+      # 所以这里先把浏览器找出来，找不到就红给人看。
+      - name: Locate Chrome
+        run: |
+          test -x /usr/bin/google-chrome || {
+            echo "error: runner 上没有 Google Chrome，截图会被静默跳过" >&2
+            exit 1
+          }
+          echo "CHROME_PATH=/usr/bin/google-chrome" >> "$GITHUB_ENV"
+
+      # 脚本自己会先 pnpm build，拍的是真正的打包产物，不是开发服务器。
+      - name: Take screenshots
+        run: pnpm screenshots
+
+      # 截图是可重复的（时钟冻在固定时刻、动画钉死），界面没动就不会有 diff，
+      # 也就不会有这笔提交 —— 不会每次发版都多一条噪音。
+      - name: Commit if changed
+        run: |
+          git add docs/screenshots
+          if git diff --cached --quiet; then
+            echo "界面没变，截图一个字节都没动，不提交"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "docs: 刷新界面截图（${{ github.ref_type == 'tag' && github.ref_name || '手动触发' }}）"
+          git push origin master
