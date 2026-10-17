@@ -1,0 +1,106 @@
+name: Release
+
+# 打 v* 标签就出一个可以直接拖进 uTools 的 upx 包。
+# 手动触发留着是为了重跑失败的发版，不用再动标签。
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 走 corepack：pnpm 版本跟着 package.json#packageManager 走，和 build.sh 里那道
+      # 「pnpm >= 12」的下限检查是同一套，不在这儿再钉一个会慢慢对不上的数字。
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          # 这是跑工具链的 Node，不是插件运行时的 —— 插件跑在 uTools 内置的 Chromium
+          # 里，拿哪个版本构建都不影响产物。build.sh 只卡了 >= 20，这里取 22：同族另外
+          # 三个插件的工具链都已经按 22 来，发版环境没有理由再分叉一个。
+          node-version: '22'
+          cache: pnpm
+
+      # 排在构建前面：版本号对不上就没必要等那一趟测试加构建。
+      #
+      # 两个版本号必须是同一个。uTools 判断「有没有新版」只看 plugin.json，工具链看
+      # package.json，漂移了不会有任何报错，只会表现成「发版了但用户收不到更新」。
+      # build.sh 里没有这道检查（funotp 的有），所以放在这儿。
+      - name: Check versions line up
+        run: |
+          version=$(node -p "require('./package.json').version")
+          plugin=$(node -p "require('./utools/plugin.json').version")
+          test "$plugin" = "$version" || {
+            echo "error: plugin.json $plugin 与 package.json $version 不一致" >&2
+            exit 1
+          }
+          # 标签只是个名字，和版本号对不上的话没人能从标签找回这包是哪一版。
+          case "$GITHUB_REF" in
+            refs/tags/v*)
+              tag=${GITHUB_REF#refs/tags/v}
+              test "$tag" = "$version" || {
+                echo "error: 标签 v$tag 与 package.json 版本 $version 不一致" >&2
+                exit 1
+              }
+              ;;
+          esac
+
+      # 发版这一趟不跳检查：这是最后一道关。build.sh 里除了测试和类型检查，还会断言
+      # Vditor 和 KaTeX 的离线资源都在 —— 那几样漏了，插件断网时直接白屏。
+      - name: Build plugin
+        run: ./build.sh
+
+      # upx 就是个 zip：plugin.json 必须在压缩包根目录，所以要在 utools/ 里面打。
+      # search-core.cjs 是 preload.js 运行时 require 的，漏了的话主输入框一条结果都搜
+      # 不出来，而插件界面照常能开 —— 不容易发现，所以别从这行里删。
+      #
+      # 文件名的前缀是仓库名（utools-fundoc）而不是插件名（fundoc）：farfarfun/packages
+      # 那边按 `<包名>-<版本>.upx` 认附件，而那边的包名一律等于仓库名。用
+      # $GITHUB_REPOSITORY 算而不是抄一遍字面量 —— 仓库万一改名，附件名自己跟着改。
+      - name: Pack upx
+        run: |
+          pkg=${GITHUB_REPOSITORY#*/}
+          version=$(node -p "require('./package.json').version")
+          cd utools
+          zip -r -q "../$pkg-$version.upx" \
+            plugin.json preload.js search-core.cjs logo.png search.png dist
+          cd ..
+          unzip -l "$pkg-$version.upx"
+          echo "PACKAGE=$pkg-$version.upx" >> "$GITHUB_ENV"
+
+      # 校验和必须覆盖这次发布的全部附件，所以排在打包之后、建 release 之前。
+      # farfarfun/packages 的站点按它给出那条校验和链接，约定见那边的
+      # docs/package-spec.md 第 1.3 节。
+      - name: Write SHA256SUMS
+        run: |
+          sha256sum "$PACKAGE" >SHA256SUMS
+          cat SHA256SUMS
+
+      # 这个仓库还没有 CHANGELOG.md，所以 notes 里不提它 —— 指一个不存在的文件比不指
+      # 更糟。等有了再把那句话加回来（funotp 和 funlink 的 notes 是带的）。
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF#refs/tags/}" "$PACKAGE" SHA256SUMS \
+            --title "${GITHUB_REF#refs/tags/}" \
+            --notes "安装：下载 $PACKAGE 后拖进 uTools 窗口。" \
+            --verify-tag
+
+      # 手动触发时没有标签，产物挂在这次运行上，方便先装上试一下再决定要不要发。
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: fundoc-upx
+          path: ${{ env.PACKAGE }}
+          retention-days: 30
