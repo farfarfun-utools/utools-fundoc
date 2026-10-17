@@ -21,10 +21,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 22 是测试工具链的硬下限：jsdom 30 依赖 undici 8，而 undici 8 直接用了
-        # Node 22.10 才有的 worker_threads.markAsUncloneable，Node 20 上所有
-        # jsdom 环境的测试文件一加载就炸。Node 20 本身也已于 2026-04 结束维护。
-        # 24 用来提前发现新版本上的问题。
+        # 22 是工具链的下限：Vite 7 自己声明 `^20.19.0 || >=22.12.0`，而 Node 20 已于
+        # 2026-04 结束维护，所以不再为它留一格。（同族另外三个仓库的下限更高一点 ——
+        # 它们的测试用 jsdom，jsdom 30 自己要求 22.22.2+；这个仓库的测试跑在 node
+        # 环境下，没有这个依赖。）24 用来提前发现新版本上的问题。
         # 插件本身跑在 uTools 内置的 Chromium 里，用哪个 Node 构建都不影响产物。
         node: ['22', '24']
 

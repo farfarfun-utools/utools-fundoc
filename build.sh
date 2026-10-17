@@ -13,10 +13,24 @@ cd "$ROOT_DIR"
 command -v node >/dev/null || { echo "error: Node.js is required" >&2; exit 1; }
 command -v pnpm >/dev/null || { echo "error: pnpm is required (corepack enable)" >&2; exit 1; }
 
-node -e "if (Number(process.versions.node.split('.')[0]) < 20) process.exit(1)" || {
-  echo "error: Node.js >= 20 is required" >&2
-  exit 1
+# Node 的下限只写在 package.json#engines.node 一处，这里读它来卡。脚本里再抄一个数字，
+# 两边迟早对不上 —— 原来这儿写的是 20，而真正的下限由依赖决定（本仓是 Vite 7 的
+# >=22.12.0），在 Node 20 上过了这道门也只会在后面某一步莫名炸掉。
+node -e '
+const want = (require("./package.json").engines || {}).node || "";
+const match = /^>=\s*(\d+)\.(\d+)\.(\d+)$/.exec(want.trim());
+if (!match) {
+  console.error(`error: package.json#engines.node 是「${want}」，本脚本只认 >=x.y.z 这种写法`);
+  process.exit(2);
 }
+const need = match.slice(1).map(Number);
+const have = process.versions.node.split(".").map(Number);
+const diff = need.map((n, i) => have[i] - n).find((d) => d !== 0) || 0;
+if (diff < 0) {
+  console.error(`error: Node ${want} is required, found ${process.versions.node}`);
+  process.exit(1);
+}
+'
 
 # 版本只卡下限，不卡死某一个版本：本机已有的新 pnpm 可以直接用，不必为本项目再装一个。
 # 但低于 12 必须拦住 —— lockfile 用的是 pnpm 12 的格式，旧版本读不了。
