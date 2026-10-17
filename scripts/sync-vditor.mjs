@@ -13,7 +13,7 @@
 //
 // 2. 不要手工拷。手工拷会在升级 Vditor 时悄悄留下上一版的残留资源，而 KaTeX 的 CSS 与
 //    fonts/ 版本错配的表现是「公式渲染出来了但字形是方块」，极难排查。这里每次都先清空。
-import { cp, mkdir, rm, readdir, stat } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = join(ROOT, 'node_modules', 'vditor', 'dist');
 const TARGET = join(ROOT, 'public', 'vditor', 'dist');
+// 代码块配色表在这里，剥 highlight.js 的样式时要照它留文件。
+const EDITOR_SOURCE = join(ROOT, 'src', 'composables', 'useEditor.ts');
 
 // vditor@4.0.0 的 dist/ 整个 24MB，绝大部分是我们用不到的渲染器。
 // 白名单而不是黑名单：上游新增目录时默认不进包，而不是默默把体积顶上去。
@@ -32,7 +34,9 @@ const KEEP = [
   'images',           // 116KB  emoji 等内置图片
   'js/lute',          // 3.6MB  Markdown 引擎（Go 编译产物），少了它什么都不渲染
   'js/katex',         // 1.5MB  公式引擎，含 fonts/ 与 mhchem（化学式）
+                      //        → pruneKatexFonts 剥掉 woff/ttf 后 0.6MB
   'js/highlight.js',  // 2.1MB  代码块高亮
+                      //        → pruneHljsStyles 剥掉用不到的主题后 1.1MB
   'js/icons',         //  72KB  工具栏图标
   // —— 按需 ——
   //
@@ -59,6 +63,89 @@ const KEEP_I18N = ['zh_CN.js', 'en_US.js'];
 //   js/smiles-drawer 252KB（化学结构式）、js/wavedrom 92KB（数字时序波形）、
 //   js/plantuml 36KB（要连 plantuml.com 的公网服务渲染，离线插件里用不了）
 //                     —— 都太专了，写文档的人几乎碰不到。
+
+/**
+ * 剥掉 KaTeX 字体里 woff2 之外的格式。
+ *
+ * KaTeX 的每条 @font-face 都把 woff2 / woff / ttf 三份一起列进 src，而浏览器只会取
+ * 第一个它支持的格式。插件跑在 uTools 的 Chromium 132 里，woff2 必中，后两份
+ * （woff 336KB + ttf 540KB）一次都不会被请求 —— 876KB 的死重量。
+ *
+ * funchat 的 vite.config.ts 里对它打包进来的那份 KaTeX 做过同一件事（见那边的
+ * dropLegacyKatexFonts），但这边的 KaTeX 是运行期按 cdn 路径取的裸文件、根本不过
+ * 打包器，所以得在同步这一步剥。
+ *
+ * 不用改 CSS：src 里留着指向已删文件的 url() 也没关系，浏览器认下第一个支持的格式
+ * 就不会再去看后面的。反过来说，万一哪天 woff2 这一支没了，剥掉 fallback 就是真的
+ * 把字形删了 —— 所以下面按「每个要删的文件都必须有同名 woff2 兜着」来验收。
+ */
+async function pruneKatexFonts() {
+  const fonts = join(TARGET, 'js', 'katex', 'fonts');
+  const entries = await readdir(fonts);
+  const woff2 = new Set(
+    entries.filter((name) => name.endsWith('.woff2')).map((name) => name.slice(0, -'.woff2'.length)),
+  );
+
+  let removed = 0;
+  for (const name of entries) {
+    const match = name.match(/^(.+)\.(woff|ttf)$/);
+    if (!match) continue;
+    if (!woff2.has(match[1])) {
+      console.error(`error: ${name} 没有对应的 woff2，剥掉它会让这套字形彻底消失`);
+      process.exit(1);
+    }
+    await rm(join(fonts, name));
+    removed += 1;
+  }
+
+  // 上游哪天改成只发 woff2，这里会一个都删不到 —— 那是好事，但得让人知道，
+  // 否则下次有人看到「省了 0 字节」会以为这段代码失效了。
+  console.log(`katex 字体：剥掉 ${removed} 份 woff/ttf，留下 ${woff2.size} 份 woff2`);
+}
+
+/**
+ * 只留下代码块配色表真正用到的 highlight.js 样式。
+ *
+ * Vditor 自带 76 个主题 + base16/ 整套，共 1.1MB，而设置面板里只提供 7 种配色
+ * （useEditor.ts 的 CODE_THEMES），最多用到 10 个文件。
+ *
+ * 名单从 CODE_THEMES 现场解析，不在这儿抄一份：抄一份的失败方式是「设置里加了个新
+ * 配色，样式文件没进包」，而 Vditor 取不到样式表时既不报错也不回退，表现是代码块变
+ * 成无配色的纯文本 —— 没人会把它联想到构建脚本。解析不到就直接停下，见下面的断言。
+ */
+async function pruneHljsStyles() {
+  const source = await readFile(EDITOR_SOURCE, 'utf8');
+  const table = source.match(/export const CODE_THEMES[\s\S]*?\n\];/);
+  if (!table) {
+    console.error(`error: ${EDITOR_SOURCE} 里找不到 CODE_THEMES，解析不出要留哪些样式`);
+    process.exit(1);
+  }
+
+  const wanted = new Set([...table[0].matchAll(/\b(?:light|dark):\s*'([\w.-]+)'/g)].map((m) => m[1]));
+  // github 是 Vditor 的兜底：给它一个不认识的主题名，它既不报错也不提示，静默回退到
+  // github。所以这个文件必须在包里，哪怕哪天设置面板不再提供 GitHub 这一项。
+  wanted.add('github');
+  if (wanted.size < 2) {
+    console.error(`error: 从 CODE_THEMES 只解析出 ${wanted.size} 个样式名，正则大概对不上了`);
+    process.exit(1);
+  }
+
+  const styles = join(TARGET, 'js', 'highlight.js', 'styles');
+  const keep = new Set([...wanted].map((name) => `${name}.min.css`));
+  const missing = [...keep].filter((file) => !existsSync(join(styles, file)));
+  if (missing.length) {
+    console.error(`error: CODE_THEMES 要的样式文件不在 vditor 里：${missing.join(', ')}`);
+    process.exit(1);
+  }
+
+  // 剩下的全删，包括 base16/ 那个子目录（716KB，一个都没引用）。
+  for (const entry of await readdir(styles, { withFileTypes: true })) {
+    if (keep.has(entry.name)) continue;
+    await rm(join(styles, entry.name), { recursive: true });
+  }
+
+  console.log(`highlight.js 样式：留下 ${keep.size} 个（${[...wanted].sort().join(', ')}）`);
+}
 
 async function directorySize(dir) {
   let total = 0;
@@ -114,6 +201,10 @@ async function main() {
     console.error('error: katex/fonts 没拷进来，公式字形会变方块');
     process.exit(1);
   }
+
+  // 白名单是按目录给的，目录里还有一部分永远不会被请求 —— 再剥一层。
+  await pruneKatexFonts();
+  await pruneHljsStyles();
 
   const bytes = await directorySize(TARGET);
   console.log(`vditor 离线资源已同步：${TARGET} (${(bytes / 1024 / 1024).toFixed(1)} MB)`);

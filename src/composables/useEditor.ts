@@ -286,8 +286,12 @@ export const MODE_LABELS: Record<EditorMode, string> = {
  *
  * `light` / `dark` 是 highlight.js 样式文件名（不含 `.min.css`），Vditor 会拼成
  * `<cdn>/dist/js/highlight.js/styles/<name>.min.css`。名字必须在 Vditor 内置的
- * `CODE_THEME` 白名单里，不在的话它会**静默回退到 github**；这几个都已核对过，
- * 对应文件也都在 public/vditor/dist 里（sync-vditor.mjs 把整个 styles 目录都带上了）。
+ * `CODE_THEME` 白名单里，不在的话它会**静默回退到 github**；这几个都已核对过。
+ *
+ * 这张表同时是打包清单：scripts/sync-vditor.mjs 现场解析它，只把这里出现的样式文件
+ * 放进离线资源（Vditor 自带 76 个主题共 1.1MB，全带上纯属浪费）。所以加一种配色就
+ * 只改这里，不用再去改构建脚本；但**文件名必须是单引号字面量**，拼接出来的名字解析
+ * 不到，样式就不会进包。
  *
  * 只收亮暗成对的主题，外加两个经典深色款 —— 深色款亮暗都用同一个文件，这是故意的：
  * monokai / nord 没有亮色版本，硬配一个别的主题反而让人以为设置没生效。
