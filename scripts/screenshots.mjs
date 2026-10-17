@@ -45,7 +45,10 @@ const FREEZE_CLOCK = `(() => {
 // 所以还得把过渡关掉，拍到的才是终态而不是某一帧中间态。
 // 跟时间有关的动画（比如倒计时圆环）由各自的 extraCss 钉到固定进度上。
 const BASE_CSS = `
-  /* 滚动条是浏览器预览的产物，uTools 窗口里没有 */
+  /* 滚动条是浏览器预览的产物，uTools 窗口里没有。
+     两条都要写：元素一旦设了标准属性 scrollbar-width，Chrome 就完全忽略
+     ::-webkit-scrollbar 那套，只写 webkit 的那条对它不起作用。 */
+  * { scrollbar-width: none !important }
   *::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important }
   *, *::before, *::after { transition: none !important; caret-color: transparent !important }
 `;
