@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  # 允许手动触发，方便在改 CI 本身时验证。
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # 同一分支的新提交会取消上一次还在跑的流水线。
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22 是测试工具链的硬下限：jsdom 30 依赖 undici 8，而 undici 8 直接用了
+        # Node 22.10 才有的 worker_threads.markAsUncloneable，Node 20 上所有
+        # jsdom 环境的测试文件一加载就炸。Node 20 本身也已于 2026-04 结束维护。
+        # 24 用来提前发现新版本上的问题。
+        # 插件本身跑在 uTools 内置的 Chromium 里，用哪个 Node 构建都不影响产物。
+        node: ['22', '24']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 和 release.yml 一样走 corepack：pnpm 版本跟着 package.json#packageManager 走，
+      # 和 build.sh 里那道「pnpm >= 12」的下限检查是同一套，不在这儿再钉一个会慢慢
+      # 对不上的数字。必须排在 setup-node 之前：cache: pnpm 需要 pnpm 已经可用。
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # 用 lint:check 而不是 lint：后者带 --fix，CI 里改工作区没有意义，
+      # 而且会把本该报错的问题自动改掉、变成绿灯。
+      - name: Lint
+        run: pnpm lint:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # 这一步顺带把 search-core.cjs 编出来（test 脚本里串了 build:preload）：
+      # 主搜索框直搜和应用内面板共用这一份打分逻辑，它编不出来测试就跑不了。
+      - name: Test
+        run: pnpm test
+
+      # build.sh 还会校验 preload.js、plugin.json、Vditor / KaTeX 的离线资源和打包
+      # 产物的完整性 —— 那几样漏了，插件断网时直接白屏，而开发机上看不出来。
+      # 上面三步已经跑过检查了，这里跳过，省掉一整轮重复的 lint / typecheck / test。
+      - name: Build plugin
+        run: ./build.sh
+        env:
+          SKIP_CHECKS: '1'
+
+      # 只在下限那个版本上传一份就够了。这个条件必须跟着上面的矩阵改 —— 条件不成立的
+      # 步骤会被跳过，流水线照样是绿的，funotp 就这么空传了很久都没人发现。
+      # if-no-files-found: error 管的是另一种静默：path 写错或产物没生成，上传一个空包
+      # 同样是绿的。
+      - name: Upload plugin dist
+        if: matrix.node == '22'
+        uses: actions/upload-artifact@v4
+        with:
+          name: utools-fundoc
+          path: |
+            utools/dist
+            utools/plugin.json
+            utools/preload.js
+            utools/search-core.cjs
+            utools/logo.png
+            utools/search.png
+          if-no-files-found: error
+          # 离线资源有十几 MB，没必要留太久。
+          retention-days: 7
