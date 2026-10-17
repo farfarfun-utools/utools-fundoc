@@ -44,6 +44,19 @@ uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式�
   别的设备上的改动会实时反映到当前界面，不用重启插件。
 - **图片走附件**：粘贴截图不会把 base64 塞进正文，而是存成独立附件，正文永远是干净的纯文本。
 
+## 截图
+
+| | |
+| --- | --- |
+| <img src="docs/screenshots/editor.png" alt="即时渲染"> | <img src="docs/screenshots/split.png" alt="分屏预览"> |
+| 左边目录树、中间编辑器、右边大纲，标题自动编号 | 分屏模式左右按标题锚点对齐滚动 |
+| <img src="docs/screenshots/search.png" alt="全文搜索"> | <img src="docs/screenshots/settings.png" alt="设置"> |
+| `Ctrl/⌘ + Shift + P` 连正文一起搜，命中处给上下文片段 | 编辑模式、外观、代码块配色、标题编号 |
+| <img src="docs/screenshots/dark.png" alt="深色主题"> | |
+| 浅色 / 深色 / 跟随 uTools | |
+
+> 图里的文档都是为截图造的示例内容。
+
 ## 安装
 
 需要 [Node.js](https://nodejs.org) ≥ 20 与 [pnpm](https://pnpm.io) ≥ 12（`corepack enable` 即可，
