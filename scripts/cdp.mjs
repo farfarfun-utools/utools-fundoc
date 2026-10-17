@@ -1,3 +1,7 @@
+// 【生成文件，请勿手改】由 https://github.com/farfarfun-utools/utools-shots 分发到四个
+// 插件仓库。要改就回那边改，再跑一遍它的 build-scripts.mjs —— 直接改这里，下次分发就没了
+// （这个文件当初就是这么分叉成两种内容的）。
+//
 // 极简 Chrome DevTools Protocol 客户端。
 //
 // 为什么不用 Puppeteer / Playwright：它们各自带一份几百 MB 的浏览器下载，而这个项目
