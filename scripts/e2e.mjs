@@ -190,10 +190,13 @@ async function main() {
   try {
     console.log('检查：');
 
-    await check('应用能启动，三栏都在', async () => {
+    await check('应用能启动，目录和大纲默认关闭', async () => {
       await session.waitForExpression('!!document.querySelector(".shell-body")');
-      assert(await session.evaluate('!!document.querySelector(".pane-tree")'), '没有文档树');
       assert(await session.evaluate('!!document.querySelector(".pane-main")'), '没有编辑区');
+      assert(!await session.evaluate('!!document.querySelector(".pane-tree")'), '文档树不应默认打开');
+      assert(!await session.evaluate('!!document.querySelector(".pane-outline")'), '大纲栏不应默认打开');
+      await session.evaluate('document.querySelector(".doc-head .icon-btn").click(); document.querySelector(".doc-head .icon-btn:last-child").click(); true');
+      await session.waitForExpression('!!document.querySelector(".pane-tree")');
       assert(await session.evaluate('!!document.querySelector(".pane-outline")'), '没有大纲栏');
     });
 
@@ -322,9 +325,11 @@ async function main() {
         [...document.querySelectorAll('.ctx-menu .ctx-item')].map((item) => item.textContent.trim())
       `);
       assert(labels.length === 3, `下拉里有 ${labels.length} 项：${labels.join(' / ')}`);
-      assert(labels[0].startsWith('图片'), `第一项是「${labels[0]}」`);
+      assert(labels[0].startsWith('PNG'), `第一项是「${labels[0]}」`);
       assert(labels[1].startsWith('Markdown'), `第二项是「${labels[1]}」`);
       assert(labels[2].startsWith('PDF'), `第三项是「${labels[2]}」`);
+      const wrapped = await session.evaluate(`[...document.querySelectorAll('.ctx-menu .ctx-item')].some(item => item.getBoundingClientRect().height > 30)`);
+      assert(!wrapped, '下载选项发生换行');
       // 点遮罩要能收起来，否则它会一直挡着整个界面。
       await session.evaluate(
         'document.querySelector(".ctx-menu").parentElement.click(); true',
@@ -408,7 +413,7 @@ async function main() {
     });
 
     await check('下载为图片落下一张真的 PNG', async () => {
-      await pickDownload(session, '图片');
+      await pickDownload(session, 'PNG');
       const file = await waitFor(
         () => fs.readdirSync(downloads).find((name) => name.endsWith('.png')),
         { label: '下载的 .png', timeout: 40_000 },
@@ -608,6 +613,20 @@ async function main() {
       const top = await settle(session, '.vditor-preview');
       const expected = svInfo.rendered[index].top;
       assert(Math.abs(top - expected) <= 4, `预览栏停在 ${top}，Sync C 在 ${expected}`);
+    });
+
+    await check('工具栏可导入多份 Markdown', async () => {
+      await session.evaluate(`(() => {
+        const input = document.querySelector('input[type=file][accept*=".md"]');
+        const files = new DataTransfer();
+        files.items.add(new File(['# 导入甲\\n内容甲'], 'one.md', { type: 'text/markdown' }));
+        files.items.add(new File(['# 导入乙\\n内容乙'], 'two.markdown', { type: 'text/markdown' }));
+        input.files = files.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      })()`);
+      await session.waitForExpression('document.querySelector(".doc-title")?.value === "导入乙"');
+      const names = await session.evaluate('[...document.querySelectorAll(".tree-name")].map(node => node.textContent)');
+      assert(names.includes('导入甲') && names.includes('导入乙'), `导入结果：${names.join(' / ')}`);
     });
 
     if (flags.has('--dump-sv') && svInfo) {

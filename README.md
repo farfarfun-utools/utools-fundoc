@@ -5,7 +5,7 @@
 uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式随时切换，LaTeX 公式完全离线渲染，
 数据存在 uTools 数据库里跟着你的设备走。
 
-呼出 uTools，敲一个 `fundoc`，光标就在文档里。左边是目录树，中间是编辑器，右边是当前文章的大纲。
+呼出 uTools，敲一个 `fundoc`，光标就在文档里。目录树和大纲默认收起，可从顶栏随时展开。
 
 ## 特性
 
@@ -33,6 +33,7 @@ uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式�
   上下键选、回车开。
 - **拖进来就是导入**：把一批 `.md` / `.markdown` 文件丢给 uTools，选「导入到 FunDoc」，
   文件名成为文档名，正文原样入库。
+- **工具栏导入**：点击顶栏的导入按钮，也可以一次选择多份 `.md` / `.markdown` 文件。
 - **导出与打印**：单篇导出 `.md`、整个目录或全部文档导出为保持层级的 zip；`Ctrl/⌘ + P`
   走系统打印对话框存 PDF —— 等公式和字体真渲染完才弹窗，不会印出半截公式。
 - **一键复制为图片**：把整篇文档渲染成一张 PNG 直接丢进剪贴板，公式、代码高亮、章节编号
@@ -49,7 +50,7 @@ uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式�
 | | |
 | --- | --- |
 | <img src="docs/screenshots/editor.png" alt="即时渲染"> | <img src="docs/screenshots/split.png" alt="分屏预览"> |
-| 左边目录树、中间编辑器、右边大纲，标题自动编号 | 分屏模式左右按标题锚点对齐滚动 |
+| 专注编辑视图，目录树与大纲可随时展开 | 分屏模式左右按标题锚点对齐滚动 |
 | <img src="docs/screenshots/search.png" alt="全文搜索"> | <img src="docs/screenshots/settings.png" alt="设置"> |
 | `Ctrl/⌘ + Shift + P` 连正文一起搜，命中处给上下文片段 | 编辑模式、外观、代码块配色、标题编号 |
 | <img src="docs/screenshots/dark.png" alt="深色主题"> | |

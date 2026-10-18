@@ -102,8 +102,8 @@ export const DEFAULT_SETTINGS: Settings = {
   syncTitleFromHeading: true,
   headingNumber: true,
   autoSaveDelay: 800,
-  outlineVisible: true,
-  treeVisible: true,
+  outlineVisible: false,
+  treeVisible: false,
 };
 
 /** 一条大纲条目。 */

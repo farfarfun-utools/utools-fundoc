@@ -23,6 +23,7 @@ const {
   printActive,
   copyActiveAsImage,
   exportActiveAsImage,
+  importDocuments,
 } = useDocs();
 
 const hostEl = ref<HTMLElement | null>(null);
@@ -112,6 +113,14 @@ function sizeLabel(bytes: number | undefined): string {
 /** 下载下拉菜单的位置。null = 收起。 */
 const downloadMenu = ref<{ x: number; y: number } | null>(null);
 const downloadBtn = ref<HTMLElement | null>(null);
+const importInput = ref<HTMLInputElement | null>(null);
+
+async function chooseImport(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const files = Array.from(input.files ?? []);
+  input.value = '';
+  await importDocuments(files.map((file) => ({ name: file.name, read: () => file.text() })));
+}
 
 /**
  * 展开 / 收起下载菜单。
@@ -165,6 +174,11 @@ function runFromMenu(action: () => void): void {
         <template v-else-if="state.dirty">未保存</template>
         <template v-else>{{ sizeLabel(activeMeta.bodySize) || '已保存' }}</template>
       </span>
+
+      <button class="icon-btn" title="导入 Markdown" @click="importInput?.click()">
+        <Icon name="upload" />
+      </button>
+      <input ref="importInput" type="file" accept=".md,.markdown,text/markdown" multiple hidden @change="chooseImport" />
 
       <button
         v-if="activeMeta"
@@ -243,13 +257,13 @@ function runFromMenu(action: () => void): void {
         @click.stop
       >
         <button class="ctx-item" @click="runFromMenu(() => exportActiveAsImage())">
-          <Icon name="image" />图片（.png）
+          <Icon name="image" />PNG 图片
         </button>
         <button class="ctx-item" @click="runFromMenu(() => exportNode(state.activeNodeId))">
-          <Icon name="markdown" />Markdown（.md）
+          <Icon name="markdown" />Markdown
         </button>
         <button class="ctx-item" @click="runFromMenu(() => printActive())">
-          <Icon name="printer" />PDF（走打印对话框）
+          <Icon name="printer" />PDF
         </button>
       </div>
     </div>

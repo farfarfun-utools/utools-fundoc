@@ -271,6 +271,10 @@ async function seedIfEmpty(): Promise<void> {
 async function openNode(nodeId: string | null): Promise<void> {
   if (nodeId === state.activeNodeId) return;
   flush();
+  if (state.dirty) {
+    notify(state.conflict ? '先处理当前文档的同步冲突' : '当前文档尚未保存，无法切换');
+    return;
+  }
 
   // blob URL 是按 assetId 缓存的，换文档时统一回收，否则长时间使用会攒一堆。
   releaseAssetUrls();
@@ -308,7 +312,7 @@ function flush(): void {
     saveTimer = null;
   }
   const nodeId = state.activeNodeId;
-  if (!nodeId || !state.dirty) return;
+  if (!nodeId || !state.dirty || state.conflict) return;
 
   try {
     // 先写正文再写元数据：万一中间失败，"正文已存但时间戳旧"远好于
@@ -774,20 +778,21 @@ function requestOpen(nodeId: string): void {
  * 把本地 Markdown 文件导入成文档。
  * @param files uTools 匹配到的文件列表。
  */
-async function importFiles(files: MatchFile[]): Promise<void> {
-  const bridge = host.bridge;
-  if (!bridge) return;
-
+async function importDocuments(files: { name: string; read: () => Promise<string | null> }[]): Promise<void> {
   let imported = 0;
   let last: string | null = null;
   for (const file of files) {
-    if (!file.isFile) continue;
-    const markdown = bridge.readTextFile(file.path);
+    if (!/\.(md|markdown)$/i.test(file.name)) continue;
+    let markdown: string | null;
+    try {
+      markdown = await file.read();
+    } catch {
+      markdown = null;
+    }
     if (markdown === null) {
       notify(`读不了 ${file.name}`);
       continue;
     }
-    // 正文里有标题就用标题，否则用去掉扩展名的文件名。
     const name = firstHeading(markdown) || file.name.replace(/\.(md|markdown)$/i, '');
     const nodeId = await createNode('doc', null, { name, markdown, open: false });
     if (nodeId) {
@@ -795,9 +800,17 @@ async function importFiles(files: MatchFile[]): Promise<void> {
       last = nodeId;
     }
   }
-
   if (last) await openNode(last);
   if (imported) notify(`已导入 ${imported} 篇文档`);
+}
+
+async function importFiles(files: MatchFile[]): Promise<void> {
+  const bridge = host.bridge;
+  if (!bridge) return;
+  await importDocuments(files.filter((file) => file.isFile).map((file) => ({
+    name: file.name,
+    read: async () => bridge.readTextFile(file.path),
+  })));
 }
 
 /** 挂载时调一次：注册宿主回调、初始化数据。 */
@@ -866,6 +879,7 @@ export function useDocs() {
     printActive,
     copyActiveAsImage,
     exportActiveAsImage,
+    importDocuments,
     toggleExpanded,
     resolveConflictKeepLocal,
     resolveConflictKeepBoth,
