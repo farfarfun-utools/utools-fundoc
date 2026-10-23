@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/farfarfun/.github/master/brand/png/mark/fundoc-128.png" alt="fundoc" width="88"></p>
+<p align="center"><img src="utools/logo.png" alt="fundoc" width="160" height="160"></p>
 
 # 文档笔记 FunDoc
 
