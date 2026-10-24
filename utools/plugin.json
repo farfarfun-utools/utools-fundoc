@@ -15,7 +15,7 @@
       "description": "管理 Markdown 文档，支持 LaTeX 公式",
       "explain": "管理 Markdown 文档，支持 LaTeX 公式",
       "icon": "logo.png",
-      "cmds": ["FunDoc", "文档", "笔记", "markdown", "md"]
+      "cmds": ["FunDoc", "文档", "笔记"]
     },
     {
       "code": "fundoc-search",
