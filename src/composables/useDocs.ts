@@ -53,7 +53,7 @@ const EXPANDED_KEY = 'fundoc.ui.expanded';
  */
 const IMAGE_TIMEOUT = 45_000;
 
-const WELCOME = `# 欢迎使用 FunDoc
+const WELCOME = `# 欢迎使用落笔成章
 
 左边是文档树，右边是本文大纲。试试在工具栏切换 **所见即所得 / 即时渲染 / 分屏** 三种模式。
 
@@ -245,7 +245,7 @@ async function seedIfEmpty(): Promise<void> {
     _id: `meta@${nodeId}`,
     nodeId,
     type: 'doc',
-    name: '欢迎使用 FunDoc',
+    name: '欢迎使用落笔成章',
     parentId: null,
     order: ORDER_STEP,
     createdAt: now,

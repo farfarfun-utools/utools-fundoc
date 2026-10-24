@@ -1,11 +1,13 @@
 <p align="center"><img src="utools/logo.png" alt="fundoc" width="160" height="160"></p>
 
-# 文档笔记 FunDoc
+# 落笔成章 · FunDoc
+
+[产品主页](https://farfarfun.github.io/packages/utools-fundoc/) · 原名「文档笔记」
 
 uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式随时切换，LaTeX 公式完全离线渲染，
 数据存在 uTools 数据库里跟着你的设备走。
 
-呼出 uTools，敲一个 `fundoc`，光标就在文档里。目录树和大纲默认收起，可从顶栏随时展开。
+呼出 uTools，输入 `落笔成章` 或 `FunDoc`，光标就在文档里。目录树和大纲默认收起，可从顶栏随时展开。
 
 ## 特性
 

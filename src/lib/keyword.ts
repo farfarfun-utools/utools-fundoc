@@ -69,7 +69,7 @@ export function desiredFeatures(metas: NodeMeta[]): Map<string, Feature> {
       // 官方 8.0 的 Feature 只有 description，没有 explain —— 写 explain 会被静默丢掉。
       // 这里放完整路径而不是标题：同一个关键词可以被多篇文章占用，uTools 会把它们都列出来，
       // 用户只能靠路径区分。
-      description: `FunDoc · ${pathOf(metas, meta.nodeId)}`,
+      description: `落笔成章 · ${pathOf(metas, meta.nodeId)}`,
       icon: 'logo.png',
       cmds,
     });

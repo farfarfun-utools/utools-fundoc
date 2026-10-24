@@ -97,7 +97,7 @@ describe('desiredFeatures', () => {
     ];
     expect(desiredFeatures(metas).get(featureCode('a'))).toEqual({
       code: 'doc/a',
-      description: 'FunDoc · 笔记/线性代数',
+      description: '落笔成章 · 笔记/线性代数',
       icon: 'logo.png',
       cmds: ['线性代数'],
     });
@@ -136,7 +136,7 @@ describe('reconcileFeatures', () => {
       doc('a', { name: '新名', keywordEnabled: true, keywords: ['矩阵'] }),
     ]);
     expect(report.updated).toEqual(['doc/a']);
-    expect(host.getFeatures()[0].description).toBe('FunDoc · 新名');
+    expect(host.getFeatures()[0].description).toBe('落笔成章 · 新名');
   });
 
   it('关掉开关后把注册摘掉', () => {

@@ -204,15 +204,15 @@ async function main() {
       const name = await session.waitForExpression(
         'document.querySelector(".tree-name")?.textContent',
       );
-      assert(name === '欢迎使用 FunDoc', `树上第一项是「${name}」`);
+      assert(name === '欢迎使用落笔成章', `树上第一项是「${name}」`);
       const title = await session.evaluate('document.querySelector(".doc-title")?.value');
-      assert(title === '欢迎使用 FunDoc', `标题栏是「${title}」`);
+      assert(title === '欢迎使用落笔成章', `标题栏是「${title}」`);
     });
 
     await check('Vditor 从本地资源起来了', async () => {
       await session.waitForExpression('!!document.querySelector(".vditor-toolbar")');
       const text = await session.evaluate('document.querySelector(".vditor")?.innerText ?? ""');
-      assert(text.includes('欢迎使用 FunDoc'), '编辑器里没有正文');
+      assert(text.includes('欢迎使用落笔成章'), '编辑器里没有正文');
     });
 
     await check('KaTeX 公式渲染出来了', async () => {
@@ -306,7 +306,7 @@ async function main() {
       await session.evaluate('document.querySelector(".sp-item").click()');
       await session.waitForExpression('!document.querySelector(".sp-panel")');
       const title = await session.evaluate('document.querySelector(".doc-title")?.value');
-      assert(title === '欢迎使用 FunDoc', `打开的是「${title}」`);
+      assert(title === '欢迎使用落笔成章', `打开的是「${title}」`);
 
       await pressCtrl(session, 'P', { shift: true });
       await session.waitForExpression('!!document.querySelector(".sp-panel")');
@@ -343,9 +343,9 @@ async function main() {
         () => fs.readdirSync(downloads).find((name) => name.endsWith('.md')),
         { label: '下载的 .md', timeout: 20_000 },
       );
-      assert(file === '欢迎使用 FunDoc.md', `文件名是「${file}」`);
+      assert(file === '欢迎使用落笔成章.md', `文件名是「${file}」`);
       const text = fs.readFileSync(path.join(downloads, file), 'utf8');
-      assert(text.startsWith('# 欢迎使用 FunDoc'), '导出的内容不对');
+      assert(text.startsWith('# 欢迎使用落笔成章'), '导出的内容不对');
       assert(text.includes('\\frac{-b \\pm'), '公式被改写了');
     });
 
@@ -371,7 +371,7 @@ async function main() {
       await session.send('Input.insertText', { text: ' 自测' });
       // 改完才算真跑过 getValue。标题同步会把文档名也改成这个，下面按新名字等文件。
       await session.waitForExpression(
-        'document.querySelector(".doc-title")?.value === "欢迎使用 FunDoc 自测"',
+        'document.querySelector(".doc-title")?.value === "欢迎使用落笔成章 自测"',
       );
 
       await pickDownload(session, 'Markdown');
@@ -380,7 +380,7 @@ async function main() {
         { label: '改动后导出的 .md', timeout: 20_000 },
       );
       const text = fs.readFileSync(path.join(downloads, file), 'utf8');
-      assert(text.startsWith('# 欢迎使用 FunDoc 自测'), `导出的开头是「${text.slice(0, 40)}」`);
+      assert(text.startsWith('# 欢迎使用落笔成章 自测'), `导出的开头是「${text.slice(0, 40)}」`);
       assert(!text.includes('data-fundoc-number'), '编号属性被 lute 反解进了 Markdown');
       assert(!text.includes('<h1'), '标题变成了 HTML，不再是 ATX 写法');
       assert(text.includes('\n## 公式'), '其他标题的写法被改动了');
@@ -401,7 +401,7 @@ async function main() {
 
       assert(html.includes('katex'), '打印内容里没有渲染好的公式');
       assert(html.includes('data-math'), '公式还没渲染完就触发了打印');
-      assert(html.includes('欢迎使用 FunDoc'), '打印内容里没有正文');
+      assert(html.includes('欢迎使用落笔成章'), '打印内容里没有正文');
       // 屏幕上有章节号，印出来的 PDF 里也得有。
       assert(html.includes('data-fundoc-number="1.1"'), '打印内容里的标题没有编号');
       // 打印容器事后要清掉，不然它会一直挂在 body 上。

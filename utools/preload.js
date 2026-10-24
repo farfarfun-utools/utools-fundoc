@@ -88,7 +88,7 @@ utools.onMainPush(
         text,
         // title 里放完整路径。命中正文时换成正文片段，让用户看见自己搜的词出现在哪儿 ——
         // 否则一条「标题完全不相关」的结果没法理解。
-        title: hit.snippet ? `${hit.path} · ${hit.snippet}` : `FunDoc · ${hit.path}`,
+        title: hit.snippet ? `${hit.path} · ${hit.snippet}` : `落笔成章 · ${hit.path}`,
       }
     })
   },

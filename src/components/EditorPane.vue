@@ -165,7 +165,7 @@ function runFromMenu(action: () => void): void {
         @change="commitTitle"
         @keydown.enter="($event.target as HTMLInputElement).blur()"
       />
-      <span v-else class="doc-title">FunDoc</span>
+      <span v-else class="doc-title">落笔成章</span>
 
       <span v-if="activePath" class="doc-path" :title="activePath">{{ activePath }}</span>
 

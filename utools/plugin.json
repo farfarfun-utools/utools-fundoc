@@ -1,7 +1,7 @@
 {
-  "pluginName": "文档笔记 FunDoc",
+  "pluginName": "落笔成章",
   "version": "0.1.0",
-  "description": "本地 Markdown 文档管理，支持 LaTeX 公式、多级目录与跨设备同步",
+  "description": "落笔成章 FunDoc：本地 Markdown 文档管理，支持 LaTeX 公式、多级目录与跨设备同步",
   "author": "farfarfun",
   "main": "dist/index.html",
   "preload": "preload.js",
@@ -15,7 +15,7 @@
       "description": "管理 Markdown 文档，支持 LaTeX 公式",
       "explain": "管理 Markdown 文档，支持 LaTeX 公式",
       "icon": "logo.png",
-      "cmds": ["FunDoc", "文档", "笔记"]
+      "cmds": ["落笔成章", "FunDoc", "文档", "笔记"]
     },
     {
       "code": "fundoc-search",

@@ -170,7 +170,7 @@ describe('onMainPush 搜索', () => {
     expect(results).toHaveLength(1);
     expect(results[0]).toMatchObject({ icon: 'logo.png', text: '线性代数' });
     // 路径要带上目录，否则同名文档没法区分。
-    expect(results[0].title).toBe('FunDoc · 数学/线性代数');
+    expect(results[0].title).toBe('落笔成章 · 数学/线性代数');
   });
 
   it('关键词命中', () => {
@@ -182,7 +182,7 @@ describe('onMainPush 搜索', () => {
     const hit = push({ payload: '矩阵分解' }).find((item) => item.text === '无关标题');
     expect(hit).toBeDefined();
     expect(hit!.title).toContain('矩阵分解');
-    expect(hit!.title).not.toContain('FunDoc ·');
+    expect(hit!.title).not.toContain('落笔成章 ·');
   });
 
   // 单字查询翻全库正文没有意义（几乎每篇都命中），代价却是把所有正文读一遍。

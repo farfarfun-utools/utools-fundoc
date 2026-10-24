@@ -806,11 +806,11 @@ watch `state.markdown`——后者会和编辑器自己的 `input` 回调互相�
 
 ```json
 {
-  "pluginName": "文档笔记 FunDoc",
+  "pluginName": "落笔成章",
   "main": "dist/index.html",
   "preload": "preload.js",
   "features": [
-    { "code": "fundoc", "cmds": ["FunDoc", "文档", "笔记", "markdown", "md"] },
+    { "code": "fundoc", "cmds": ["落笔成章", "FunDoc", "文档", "笔记", "markdown", "md"] },
     { "code": "fundoc-search",
       "cmds": [{ "type": "over", "label": "搜索文档", "minLength": 2, "maxLength": 40 }],
       "mainPush": true },
