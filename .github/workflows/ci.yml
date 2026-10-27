@@ -102,6 +102,6 @@ jobs:
         if: matrix.node == '22' && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: utools-fundoc-upxs-preview
+          name: utools-fundoc-upxs
           path: release/
           if-no-files-found: error

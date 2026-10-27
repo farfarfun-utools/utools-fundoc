@@ -53,14 +53,14 @@ jobs:
           cellphone: ${{ secrets.UTOOLS_CELLPHONE }}
       - name: Checksum package
         run: cd release && sha256sum "$UPXS_NAME" > SHA256SUMS
-      - name: Upload installation preview
+      - name: Upload UPXS package
         uses: actions/upload-artifact@v4
         with:
-          name: utools-fundoc-upxs-preview
+          name: utools-fundoc-upxs
           path: release/
           if-no-files-found: error
-      - name: Publish installation preview
+      - name: Publish stable release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" "$UPXS_FILE" release/SHA256SUMS --verify-tag --prerelease --title "$GITHUB_REF_NAME · UPXS 安装测试版" --notes-file docs/release-upxs.md
+        run: gh release create "$GITHUB_REF_NAME" "$UPXS_FILE" release/SHA256SUMS --verify-tag --latest --title "$GITHUB_REF_NAME · UPXS 正式版" --notes-file docs/release-upxs.md
