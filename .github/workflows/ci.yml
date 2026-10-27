@@ -84,3 +84,24 @@ jobs:
           if-no-files-found: error
           # 离线资源有十几 MB，没必要留太久。
           retention-days: 7
+
+      - name: Package UPXS with organization secrets
+        if: matrix.node == '22' && github.event_name != 'pull_request'
+        uses: farfarfun-action/utools-devtools@c48e8ce06b6700d21c73917b3b16d6e5674c13ef # v0.1.4
+        with:
+          source: utools
+          output: release/utools-fundoc.upxs
+          identity-file: identity.json
+          mid: ${{ secrets.UTOOLS_MID }}
+          uid: ${{ secrets.UTOOLS_UID }}
+          cellphone: ${{ secrets.UTOOLS_CELLPHONE }}
+      - name: Checksum UPXS
+        if: matrix.node == '22' && github.event_name != 'pull_request'
+        run: cd release && sha256sum utools-fundoc.upxs > SHA256SUMS
+      - name: Upload UPXS installation preview
+        if: matrix.node == '22' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: utools-fundoc-upxs-preview
+          path: release/
+          if-no-files-found: error

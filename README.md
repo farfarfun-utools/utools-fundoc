@@ -9,6 +9,12 @@ uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式�
 
 呼出 uTools，输入 `落笔成章` 或 `FunDoc`，光标就在文档里。目录树和大纲默认收起，可从顶栏随时展开。
 
+## UPXS 安装与发布
+
+从 [v0.1.1 Release](https://github.com/farfarfun-utools/utools-fundoc/releases/tag/v0.1.1) 下载 `utools-fundoc-0.1.1.upxs`，导入 uTools 测试。也可在成功的 CI 中下载 `utools-fundoc-upxs-preview` 附件。打包链路已由用户在 FunCalc 上验证；本插件的实机安装与功能仍需分别确认。
+
+项目根目录 [`identity.json`](identity.json) 明文维护官方项目 ID `z93ipfqk`。`mid`、`uid`、`cellphone` 由 `farfarfun-utools` 组织的 `UTOOLS_MID`、`UTOOLS_UID`、`UTOOLS_CELLPHONE` Secrets 注入，不写入公开配置。CI 和 Release 统一调用固定版本的 [utools-devtools](https://github.com/farfarfun-action/utools-devtools)，生成 `.upxs` 与 `SHA256SUMS`，PR 不执行身份打包。
+
 ## 特性
 
 - **多层目录**：像文件系统一样嵌套、拖拽、重命名。目录和文档都是稳定 ID 的节点，重命名或移动

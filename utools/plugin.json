@@ -1,6 +1,6 @@
 {
   "pluginName": "落笔成章",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "落笔成章 FunDoc：本地 Markdown 文档管理，支持 LaTeX 公式、多级目录与跨设备同步",
   "author": "farfarfun",
   "main": "dist/index.html",
