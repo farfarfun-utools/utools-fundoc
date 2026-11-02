@@ -61,6 +61,23 @@
         },
         "required": ["query"]
       }
+    },
+    "create_document": {
+      "description": "在 FunDoc 新建 Markdown 文档并保存到 uTools 数据库；不会切走当前文档。文档可能随 uTools 同步。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string", "description": "文档标题，1 至 200 个字符", "maxLength": 200 },
+          "markdown": { "type": "string", "description": "可选的初始 Markdown 正文，受 uTools 单条文档 1 MB 限制" },
+          "parentId": { "type": "string", "description": "可选的已有目录 ID；留空则建在根目录" }
+        },
+        "required": ["title"]
+      }
+    },
+    "list_document_folders": {
+      "description": "列出 FunDoc 的目录路径和 ID，供新建文档时选择 parentId；不返回文档正文。",
+      "inputSchema": { "type": "object", "additionalProperties": false }
     }
   }
 }

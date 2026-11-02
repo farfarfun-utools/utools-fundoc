@@ -17,7 +17,7 @@ uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式�
 
 ## AI / MCP 工具
 
-`search_documents` 搜索文档标题、关键词和正文，返回路径及短片段，不返回整篇正文。调用会把命中的本地文档信息交给 Agent；第三方 Agent 需由用户开启 uTools MCP 服务。需 uTools 8 的工具能力。
+`search_documents` 搜索文档标题、关键词和正文，返回路径及短片段，不返回整篇正文。`list_document_folders` 列出目录路径与 ID；`create_document` 在根目录或指定目录新建 Markdown 文档，不切走当前编辑页。文档写入 uTools 数据库，可能随 uTools 同步。搜索结果与新建内容会交给调用方；第三方 Agent 需由用户开启 uTools MCP 服务。需 uTools 8 的工具能力。
 
 ## 特性
 
