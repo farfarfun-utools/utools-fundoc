@@ -48,5 +48,19 @@
       ]
     }
   ],
-  "platform": ["darwin", "win32", "linux"]
+  "platform": ["darwin", "win32", "linux"],
+  "tools": {
+    "search_documents": {
+      "description": "搜索 FunDoc 文档的标题、关键词和正文，返回文档路径及短片段，不返回整篇正文。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": { "type": "string", "description": "搜索词，多个词用空格分隔" },
+          "limit": { "type": "number", "description": "最多返回条数，默认 8，上限 20" }
+        },
+        "required": ["query"]
+      }
+    }
+  }
 }
