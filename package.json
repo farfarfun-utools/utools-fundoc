@@ -1,6 +1,7 @@
 {
-  "name": "utools-fundoc",
-  "version": "0.1.2",
+  "name": "@farfarfun/utools-fundoc",
+  "funbuild": { "build": "sh build.sh" },
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.11.2",
