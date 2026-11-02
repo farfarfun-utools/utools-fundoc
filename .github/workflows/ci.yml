@@ -42,28 +42,8 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
-
-      # 用 lint:check 而不是 lint：后者带 --fix，CI 里改工作区没有意义，
-      # 而且会把本该报错的问题自动改掉、变成绿灯。
-      - name: Lint
-        run: pnpm lint:check
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      # 这一步顺带把 search-core.cjs 编出来（test 脚本里串了 build:preload）：
-      # 主搜索框直搜和应用内面板共用这一份打分逻辑，它编不出来测试就跑不了。
-      - name: Test
-        run: pnpm test
-
-      # build.sh 还会校验 preload.js、plugin.json、Vditor / KaTeX 的离线资源和打包
-      # 产物的完整性 —— 那几样漏了，插件断网时直接白屏，而开发机上看不出来。
-      # 上面三步已经跑过检查了，这里跳过，省掉一整轮重复的 lint / typecheck / test。
-      - name: Build plugin
-        run: ./build.sh
-        env:
-          SKIP_CHECKS: '1'
+      - name: Check and build plugin
+        run: sh build.sh
 
       # 只在下限那个版本上传一份就够了。这个条件必须跟着上面的矩阵改 —— 条件不成立的
       # 步骤会被跳过，流水线照样是绿的，funotp 就这么空传了很久都没人发现。
