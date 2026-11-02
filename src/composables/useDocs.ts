@@ -868,6 +868,19 @@ async function initialize(): Promise<void> {
       },
     }) };
   });
+  host.registerTool?.('create_document', async ({ title, markdown, parentId }) => {
+    if (typeof title !== 'string' || !title.trim() || title.trim().length > 200) throw new Error('标题须为 1 至 200 个字符');
+    if (markdown !== undefined && typeof markdown !== 'string') throw new Error('正文须为 Markdown 文本');
+    if (parentId !== undefined && (typeof parentId !== 'string' || !state.metas.some((meta) => meta.nodeId === parentId && meta.type === 'dir'))) throw new Error('目标目录不存在');
+    const name = title.trim();
+    const nodeId = await createNode('doc', (parentId as string | undefined) ?? null, { name, markdown: markdown as string | undefined, open: false });
+    if (!nodeId) throw new Error('文档未能保存，请检查数据库容量和同步状态');
+    return { id: nodeId, title: name, parentId: parentId ?? null };
+  });
+  host.registerTool?.('list_document_folders', () => ({
+    folders: state.metas.filter((meta) => meta.type === 'dir')
+      .map((meta) => ({ id: meta.nodeId, path: pathOf(state.metas, meta.nodeId) })),
+  }));
 }
 
 export function useDocs() {
