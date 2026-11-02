@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { nanoid } from 'nanoid';
 import { host } from '../lib/host';
 import {
+  bodyId,
   byteSize,
   loadAllMeta,
   loadBody,
@@ -41,6 +42,7 @@ import { printDocument } from '../lib/print';
 import { snapshotMarkdown, type Snapshot } from '../lib/snapshot';
 import { nodeIdFromFeatureCode, reconcileFeatures, unregisterFeature } from '../lib/keyword';
 import { firstHeading, parseOutline } from '../lib/outline';
+import { searchDocs } from '../lib/search';
 import type { NodeMeta, NodeType, Settings } from '../lib/types';
 
 const EXPANDED_KEY = 'fundoc.ui.expanded';
@@ -853,6 +855,19 @@ async function initialize(): Promise<void> {
   state.metas = await loadAllMeta();
   await seedIfEmpty();
   await reload();
+  host.registerTool?.('search_documents', ({ query, limit }) => {
+    if (typeof query !== 'string' || !query.trim()) throw new Error('请提供搜索词');
+    const count = typeof limit === 'number' && Number.isFinite(limit) && limit > 0
+      ? Math.min(Math.floor(limit), 20) : 8;
+    return { results: searchDocs(state.metas, query, {
+      limit: count,
+      bodyOf: (nodeId) => {
+        if (nodeId === state.activeNodeId) return state.markdown;
+        const body = host.db.get(bodyId(nodeId));
+        return typeof body?.markdown === 'string' ? body.markdown : '';
+      },
+    }) };
+  });
 }
 
 export function useDocs() {

@@ -15,6 +15,10 @@ uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式�
 
 项目根目录 [`identity.json`](identity.json) 明文维护官方项目 ID `z93ipfqk`。`mid`、`uid`、`cellphone` 由 `farfarfun-utools` 组织的 `UTOOLS_MID`、`UTOOLS_UID`、`UTOOLS_CELLPHONE` Secrets 注入，不写入公开配置。CI 和 Release 统一调用固定版本的 [utools-devtools](https://github.com/farfarfun-action/utools-devtools)，生成 `.upxs` 与 `SHA256SUMS`，PR 不执行身份打包。
 
+## AI / MCP 工具
+
+`search_documents` 搜索文档标题、关键词和正文，返回路径及短片段，不返回整篇正文。调用会把命中的本地文档信息交给 Agent；第三方 Agent 需由用户开启 uTools MCP 服务。需 uTools 8 的工具能力。
+
 ## 特性
 
 - **多层目录**：像文件系统一样嵌套、拖拽、重命名。目录和文档都是稳定 ID 的节点，重命名或移动

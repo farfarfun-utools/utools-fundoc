@@ -93,6 +93,7 @@ export type Bridge = {
 export type Host = {
   /** 真机 = true；浏览器预览 = false。界面据此隐藏只有真机才有意义的功能。 */
   readonly native: boolean;
+  registerTool?: typeof utools.registerTool;
   db: Db;
   dbStorage: KeyValue;
   bridge: Bridge | null;
@@ -303,6 +304,7 @@ export function createShimHost(): Host {
 function createNativeHost(api: typeof utools): Host {
   return {
     native: true,
+    registerTool: api.registerTool?.bind(api),
     // uTools 的 db 比我们的 Db 类型多出若干重载（allDocs(ids: string[]) 等），
     // 结构上兼容，这里只收窄到用得到的部分。
     db: api.db as unknown as Db,
