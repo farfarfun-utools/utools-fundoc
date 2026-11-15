@@ -6,6 +6,7 @@ import { assetUrl, storeAsset, toRenderable } from '../lib/asset';
 import { applyHeadingNumbers } from '../lib/heading-number';
 import { host } from '../lib/host';
 import { externalLinkUrl } from '../lib/link';
+import { renderMathDelimiters } from '../lib/math';
 import { installScrollSync, type ScrollSync } from '../lib/scroll-sync';
 import { injectVditorStyle, vditorBase } from '../lib/vditor';
 import type { CodeTheme, EditorMode, Settings } from '../lib/types';
@@ -81,7 +82,7 @@ export function createEditor(
   // 不标注的话 TS 会因为「初始化表达式引用了自身」把它推成 any（TS7022）。
   const vditor: Vditor = new Vditor(element, {
     cdn,
-    value: toRenderable(initialMarkdown),
+    value: toRenderable(renderMathDelimiters(initialMarkdown)),
     mode: settings.mode,
     lang: 'zh_CN',
     height: '100%',
@@ -137,7 +138,17 @@ export function createEditor(
     },
     input: (value) => {
       if (suppressInput) return;
-      callbacks.onInput(value);
+      const normalized = renderMathDelimiters(value);
+      if (normalized !== value) {
+        const source = element.querySelector<HTMLTextAreaElement>('textarea.vditor-sv');
+        const start = source?.selectionStart;
+        const end = source?.selectionEnd;
+        suppressInput = true;
+        vditor.setValue(normalized);
+        suppressInput = false;
+        if (source && start !== undefined && end !== undefined) source.setSelectionRange(start, end);
+      }
+      callbacks.onInput(normalized);
     },
   });
 
@@ -149,7 +160,7 @@ export function createEditor(
     }
     suppressInput = true;
     // clearStack = true：撤销栈不能跨文档，否则在 B 文档里按 Ctrl+Z 会撤出 A 的内容。
-    vditor.setValue(toRenderable(markdown), true);
+    vditor.setValue(toRenderable(renderMathDelimiters(markdown)), true);
     suppressInput = false;
     // setValue 不触发 input 事件，所以得手动作废测量 —— 否则切文档后还在用上一篇的锚点。
     scrollSync?.invalidate();

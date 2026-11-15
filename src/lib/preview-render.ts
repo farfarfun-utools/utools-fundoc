@@ -11,6 +11,7 @@ import Vditor from 'vditor';
 import { toRenderable } from './asset';
 import { settleWithin, withTimeout } from './deadline';
 import { applyHeadingNumbers } from './heading-number';
+import { renderMathDelimiters } from './math';
 import { injectVditorStyle, vditorBase } from './vditor';
 
 /** 等公式渲染完的最长时间。超了就照用 —— 卡住不出结果比出一张有瑕疵的图更糟。 */
@@ -102,7 +103,7 @@ export async function renderOffscreen(
   try {
     const cdn = vditorBase();
     await withTimeout(
-      Vditor.preview(container as HTMLDivElement, toRenderable(markdown), {
+      Vditor.preview(container as HTMLDivElement, toRenderable(renderMathDelimiters(markdown)), {
         cdn,
         mode: 'light',
         lang: 'zh_CN',

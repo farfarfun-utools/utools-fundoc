@@ -218,7 +218,31 @@ async function main() {
     await check('KaTeX 公式渲染出来了', async () => {
       // .katex 是 KaTeX 渲染成功才有的容器；只要有一个就说明脚本、CSS、字体都到位了。
       const count = await session.waitForExpression('document.querySelectorAll(".katex").length');
-      assert(count >= 2, `只渲染出 ${count} 个公式（行内 + 块级至少两个）`);
+      assert(count >= 4, `只渲染出 ${count} 个公式（行内、$$ 和 \\[ 三种写法）`);
+    });
+
+    await check('即时渲染模式输入 \\[...\\] 后立即渲染', async () => {
+      await session.evaluate(`
+        (() => {
+          const editor = document.querySelector('.vditor-ir');
+          const paragraph = editor.querySelector('p');
+          editor.focus();
+          const range = document.createRange();
+          range.selectNodeContents(paragraph);
+          range.collapse(false);
+          getSelection().removeAllRanges();
+          getSelection().addRange(range);
+          return true;
+        })()
+      `);
+      await session.send('Input.insertText', { text: '\n\\[q^2\\]' });
+      await session.waitForExpression(
+        '[...document.querySelectorAll(".vditor-ir .katex")].some(el => el.textContent.includes("q2"))',
+      );
+      assert(
+        await session.evaluate('document.querySelector(".vditor-ir")?.contains(getSelection().anchorNode)'),
+        '公式转换后光标离开了编辑器',
+      );
     });
 
     await check('代码高亮生效', async () => {
@@ -533,6 +557,21 @@ async function main() {
         'document.querySelectorAll(".vditor-preview .katex").length',
       );
       assert(count >= 2, `预览栏里只有 ${count} 个公式`);
+    });
+
+    await check('分屏输入 \\[...\\] 后立即渲染', async () => {
+      await session.evaluate(`
+        (() => {
+          const editor = document.querySelector('textarea.vditor-sv');
+          editor.value += ${JSON.stringify('\n\\[z^2\\]')};
+          editor.dispatchEvent(new Event('input', { bubbles: true }));
+          return true;
+        })()
+      `);
+      await session.waitForExpression('document.querySelector("textarea.vditor-sv")?.value.includes("$$z^2$$")');
+      await session.waitForExpression(
+        '[...document.querySelectorAll(".vditor-preview .katex")].some(el => el.textContent.includes("z2"))',
+      );
     });
 
     // 分屏滚动同步的几项检查共用一篇专门构造的文档，见 svDoc() 的说明。

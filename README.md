@@ -11,7 +11,7 @@ uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式�
 
 ## UPXS 安装与发布
 
-从 [v0.1.3 Release](https://github.com/farfarfun-utools/utools-fundoc/releases/tag/v0.1.3) 下载 `utools-fundoc-0.1.3.upxs`，导入 uTools 使用。也可在成功的 CI 中下载 `utools-fundoc-upxs` 附件。打包链路已由用户在 FunCalc 上验证；本插件的实机安装与功能仍需分别确认。
+从 [v0.1.4 Release](https://github.com/farfarfun-utools/utools-fundoc/releases/tag/v0.1.4) 下载 `utools-fundoc-0.1.4.upxs`，导入 uTools 使用。也可在成功的 CI 中下载 `utools-fundoc-upxs` 附件。打包链路已由用户在 FunCalc 上验证；本插件的实机安装与功能仍需分别确认。
 
 项目根目录 [`identity.json`](identity.json) 明文维护官方项目 ID `z93ipfqk`。`mid`、`uid`、`cellphone` 由 `farfarfun-utools` 组织的 `UTOOLS_MID`、`UTOOLS_UID`、`UTOOLS_CELLPHONE` Secrets 注入，不写入公开配置。CI 和 Release 统一调用固定版本的 [utools-devtools](https://github.com/farfarfun-action/utools-devtools)，生成 `.upxs` 与 `SHA256SUMS`，PR 不执行身份打包。
 
@@ -28,7 +28,8 @@ uTools Markdown 文档插件 — 多层目录组织文稿，三种编辑模式�
 - **分屏按标题对齐滚动**：分屏模式下两栏**按标题锚点分段对齐**，而不是按总高度等比例 ——
   公式和图片让源码与渲染的高度不成比例，等比例滚到后面会差出整整一节。两栏都能拖，互相跟随。
 - **LaTeX 公式离线渲染**：KaTeX 引擎与字体全部打进插件，**断网照样渲染**，另带 `mhchem`
-  化学式扩展。行内 `$...$`、块级 `$$...$$` 都支持，且 `$100` 这类写法不会被误判成公式。
+  化学式扩展。行内 `$...$`、块级 `$$...$$` 和 `\[...\]` 都支持；编辑时后者会规范为 `$$...$$`。
+  `$100` 这类写法不会被误判成公式。
 - **代码高亮**：highlight.js，代码块配色可在设置里换（跟随界面 / GitHub / Atom One /
   Tokyo Night / Stack Overflow / Monokai / Nord）。
 - **五种图表，全本地**：` ```mermaid `（流程图 / 时序图 / 甘特图）、` ```echarts `（图表）、
