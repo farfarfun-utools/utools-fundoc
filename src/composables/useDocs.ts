@@ -30,6 +30,7 @@ import {
   assetDocId,
   collectAssetIds,
   findOrphanAssets,
+  listAssetIds,
   releaseAssetUrls,
   removeAssets,
   toStorable,
@@ -449,7 +450,7 @@ function moveNode(nodeId: string, parentId: string | null, beforeNodeId: string 
 /**
  * 删除节点。目录会连带删除全部子孙。
  *
- * 顺序是刻意的：先摘关键词入口，再删正文和附件，最后删元数据。中途失败也不会留下
+ * 顺序是刻意的：先摘关键词入口，再删正文和元数据。中途失败也不会留下
  * "能搜到但打不开"的死入口。
  *
  * @param nodeId 要删除的节点。
@@ -459,13 +460,13 @@ async function deleteNode(nodeId: string): Promise<void> {
   if (!meta) return;
 
   const victims = [meta, ...descendantsOf(state.metas, nodeId)];
+  const assetIds = new Set<string>();
 
   for (const victim of victims) {
     if (victim.type === 'doc') {
       if (host.native) unregisterFeature(victim.nodeId);
-      // 附件不参与任何自动回收，不手动清就会永久留在库里。
       const markdown = await loadBody(victim.nodeId);
-      removeAssets(collectAssetIds(markdown));
+      for (const id of collectAssetIds(markdown)) assetIds.add(id);
       removeBody(victim.nodeId);
     }
     removeMeta(victim.nodeId);
@@ -480,6 +481,7 @@ async function deleteNode(nodeId: string): Promise<void> {
     state.activeNodeId = null;
     await openNode(firstDocId());
   }
+  if (assetIds.size) await removeUnreferencedAssets([...assetIds]);
 }
 
 /**
@@ -505,14 +507,19 @@ function setKeywords(nodeId: string, enabled: boolean, keywords: string[]): void
  * @returns 清掉的附件数量。
  */
 async function cleanOrphanAssets(): Promise<number> {
-  flush(); // 当前文档里刚贴的图还没落盘的话，会被误判成孤儿
-  const bodies = await Promise.all(
-    state.metas.filter((m) => m.type === 'doc').map((m) => loadBody(m.nodeId)),
-  );
-  const orphans = findOrphanAssets(bodies);
-  removeAssets(orphans);
-  notify(orphans.length ? `已清理 ${orphans.length} 张无引用图片` : '没有需要清理的图片');
-  return orphans.length;
+  const count = await removeUnreferencedAssets(listAssetIds());
+  notify(count ? `已清理 ${count} 张无引用图片` : '没有需要清理的图片');
+  return count;
+}
+
+async function removeUnreferencedAssets(candidates: string[]): Promise<number> {
+  const docs = await host.db.promises.allDocs(bodyId(''));
+  const bodies = docs.map((doc) => typeof doc.markdown === 'string' ? doc.markdown : '');
+  if (state.activeNodeId) bodies.push(state.markdown);
+  if (state.conflict) bodies.push(state.conflict.remoteMarkdown);
+  const unused = findOrphanAssets(bodies, candidates);
+  removeAssets(unused);
+  return unused.length;
 }
 
 // ───────────────────────────── 导出 ─────────────────────────────
@@ -762,16 +769,16 @@ async function resolveConflictKeepBoth(): Promise<void> {
   if (!conflict || !meta) return;
 
   const localMarkdown = state.markdown;
-  state.conflict = null;
-  setMarkdownExternal(conflict.remoteMarkdown);
-
   // open: false —— 副本建在旁边就行，当前编辑器要停在远端版本上。
   const copyId = await createNode('doc', meta.parentId, {
     name: `${meta.name}（本机副本）`,
     markdown: localMarkdown,
     open: false,
   });
-  if (copyId) notify(`本地改动已另存为「${meta.name}（本机副本）」`);
+  if (!copyId) return;
+  state.conflict = null;
+  setMarkdownExternal(conflict.remoteMarkdown);
+  notify(`本地改动已另存为「${meta.name}（本机副本）」`);
 }
 
 // ───────────────────────────── 初始化 ─────────────────────────────

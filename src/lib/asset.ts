@@ -135,10 +135,11 @@ export function removeAssets(assetIds: string[]): void {
  * @param allMarkdown 全部文档的正文。
  * @returns 无引用的 assetId 列表。
  */
-export function findOrphanAssets(allMarkdown: string[]): string[] {
+export function findOrphanAssets(allMarkdown: string[], candidates = listAssetIds()): string[] {
   const referenced = new Set(allMarkdown.flatMap(collectAssetIds));
-  return host.db
-    .allDocs(ASSET_PREFIX)
-    .map((doc) => doc._id.slice(ASSET_PREFIX.length))
-    .filter((assetId) => !referenced.has(assetId));
+  return candidates.filter((assetId) => !referenced.has(assetId));
+}
+
+export function listAssetIds(): string[] {
+  return host.db.allDocs(ASSET_PREFIX).map((doc) => doc._id.slice(ASSET_PREFIX.length));
 }
