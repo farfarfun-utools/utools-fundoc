@@ -49,3 +49,43 @@ it('AI 新建文档沿用保存流程，不切走当前文档', async () => {
   await expect(create!({ title: ' ' })).rejects.toThrow('标题');
   await expect(create!({ title: '过大', markdown: 'x'.repeat(1024 * 1024 + 1) })).rejects.toThrow('文档未能保存');
 });
+
+it('AI 工具参数为 null 或 undefined 时安全报错，且搜索缓存正文读取避免重复查库', async () => {
+  resetStorage();
+  saveMeta({ _id: 'meta@d1', nodeId: 'd1', type: 'doc', name: '第一篇', parentId: null,
+    order: 1, createdAt: 1, updatedAt: 1 });
+  saveMeta({ _id: 'meta@d2', nodeId: 'd2', type: 'doc', name: '第二篇', parentId: null,
+    order: 2, createdAt: 1, updatedAt: 1 });
+  saveBody('d1', '正文一');
+  saveBody('d2', '包含目标关键词的正文内容');
+
+  let search: ((params: unknown) => unknown) | undefined;
+  let create: ((params: unknown) => Promise<unknown>) | undefined;
+  host.registerTool = (name, handler) => {
+    if (name === 'search_documents') search = handler as (params: unknown) => unknown;
+    if (name === 'create_document') create = handler as (params: unknown) => Promise<unknown>;
+  };
+
+  const docs = useDocs();
+  await docs.initialize();
+  await docs.openNode('d1');
+
+  expect(() => search!(null)).toThrow('搜索词');
+  expect(() => search!(undefined)).toThrow('搜索词');
+  await expect(create!(null)).rejects.toThrow('标题');
+  await expect(create!(undefined)).rejects.toThrow('标题');
+
+  const originalGet = host.db.get;
+  let d2Reads = 0;
+  host.db.get = (id: string) => {
+    if (id === 'body@d2') d2Reads += 1;
+    return originalGet(id);
+  };
+  try {
+    const found = search!({ query: '目标关键词' }) as { results: Array<{ nodeId: string }> };
+    expect(found.results.map((item) => item.nodeId)).toEqual(['d2']);
+    expect(d2Reads).toBe(1);
+  } finally {
+    host.db.get = originalGet;
+  }
+});

@@ -7,8 +7,10 @@
 set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-PLUGIN_DIR="$ROOT_DIR/utools"          # 打包目录，不含 .git
 cd "$ROOT_DIR"
+# 一律用相对路径喂给 node：CI 的 Windows 作业跑在 Git Bash 里，$ROOT_DIR 是 /d/a/... 这种
+# MSYS 路径，Windows 版 node 解析不了；而 node 继承的工作目录本来就是这里。
+PLUGIN_DIR=utools          # 打包目录，不含 .git
 
 command -v node >/dev/null || { echo "error: Node.js is required" >&2; exit 1; }
 command -v pnpm >/dev/null || { echo "error: pnpm is required (corepack enable)" >&2; exit 1; }

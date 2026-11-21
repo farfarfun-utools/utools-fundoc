@@ -141,17 +141,29 @@ window.fundoc = {
    */
   writeFiles(parentDir, rootName, dirs, files) {
     try {
-      // rootName 来自文档名，已经洗过一遍。这里再挡一次：带分隔符就会跳出用户选的目录。
-      if (!rootName || path.basename(rootName) !== rootName) {
+      // rootName 来自文档名，已经洗过一遍。这里再挡一次：带分隔符或 ./.. 就会跳出用户选的目录。
+      if (
+        !rootName
+        || typeof rootName !== 'string'
+        || rootName === '.'
+        || rootName === '..'
+        || path.basename(rootName) !== rootName
+      ) {
         throw new Error(`导出目录名不合法：${rootName}`)
       }
-      const rootDir = path.resolve(parentDir, rootName)
+      const baseDir = path.resolve(parentDir)
+      const basePrefix = baseDir.endsWith(path.sep) ? baseDir : baseDir + path.sep
+      const rootDir = path.resolve(baseDir, rootName)
+      if (!rootDir.startsWith(basePrefix)) {
+        throw new Error(`导出目录名不合法：${rootName}`)
+      }
 
       // 相对路径里带 `..` 会把文件写到导出目录外面去。路径是我们自己生成的，
       // 但写错地方不可逆，这道防线不花钱。
+      const rootPrefix = rootDir.endsWith(path.sep) ? rootDir : rootDir + path.sep
       const safeJoin = relative => {
         const target = path.resolve(rootDir, relative)
-        if (target !== rootDir && !target.startsWith(rootDir + path.sep)) {
+        if (target !== rootDir && !target.startsWith(rootPrefix)) {
           throw new Error(`拒绝写到导出目录外：${relative}`)
         }
         return target

@@ -74,3 +74,31 @@ it('冲突未解决时不会自动覆盖远端或切走本机草稿', async () =
   expect(docs.state.markdown).toBe('本机草稿');
   expect(docs.state.conflict?.remoteMarkdown).toBe('远端版本');
 });
+
+it('删除当前正在编辑的文档时先取消自动保存定时器，避免把已删文档复活', async () => {
+  docs.state.conflict = null;
+  docs.state.settings.autoSaveDelay = 20;
+  saveBody('local', '初始内容');
+  docs.setMarkdown('刚改过但马上要删的内容');
+
+  await docs.deleteNode('local');
+  await new Promise((resolve) => setTimeout(resolve, 60));
+
+  expect(host.db.get('meta@local')).toBeNull();
+  expect(host.db.get('body@local')).toBeNull();
+});
+
+it('新建文档写入元数据失败时会清理已写入的孤立正文', async () => {
+  const originalPut = host.db.put;
+  host.db.put = (doc) => {
+    if (doc._id.startsWith('meta@')) return { id: doc._id, ok: false, error: true, message: 'meta write failed' };
+    return originalPut(doc);
+  };
+  try {
+    const id = await docs.createNode('doc', null, { name: '孤立测试', markdown: '孤立正文', open: false });
+    expect(id).toBeNull();
+    expect(host.db.allDocs('body@').some((doc) => doc.markdown === '孤立正文')).toBe(false);
+  } finally {
+    host.db.put = originalPut;
+  }
+});

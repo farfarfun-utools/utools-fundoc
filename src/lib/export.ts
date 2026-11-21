@@ -235,10 +235,20 @@ export function buildExportPlan(
     });
   };
 
+  /** 缓存已读出的正文，避免检查根目录与 assets 冲突时重复调用 io.bodyOf。 */
+  const bodyCache = new Map<string, string>();
+  const readBody = (nodeId: string): string => {
+    const cached = bodyCache.get(nodeId);
+    if (cached !== undefined) return cached;
+    const text = io.bodyOf(nodeId);
+    bodyCache.set(nodeId, text);
+    return text;
+  };
+
   /** 把一篇文档摊成一个 .md 文件。`segments` 是它所在目录的路径段。 */
   const emitDoc = (meta: NodeMeta, segments: string[], used: Set<string>): void => {
     const name = uniqueSegment(used, sanitizeSegment(meta.name), '.md');
-    const markdown = io.bodyOf(meta.nodeId);
+    const markdown = readBody(meta.nodeId);
     // 先问一遍附件，顺带把图片文件登记进 files。
     for (const assetId of collectAssetIds(markdown)) nameOf(assetId);
     const path = [...segments, name].join('/');
@@ -250,9 +260,9 @@ export function buildExportPlan(
     remember(meta, path);
   };
 
-  const walk = (children: TreeNode[], segments: string[]): void => {
+  const walk = (children: TreeNode[], segments: string[], initialUsed?: Set<string>): void => {
     // used 是每层独立的：`a/周报.md` 和 `b/周报.md` 不冲突，只有同一层才需要去重。
-    const used = new Set<string>();
+    const used = initialUsed ? new Set(initialUsed) : new Set<string>();
     for (const child of children) {
       if (child.type === 'doc') {
         emitDoc(child, segments, used);
@@ -266,14 +276,32 @@ export function buildExportPlan(
     }
   };
 
+  const precollectAssets = (children: TreeNode[]): void => {
+    for (const child of children) {
+      if (child.type === 'doc') {
+        for (const assetId of collectAssetIds(readBody(child.nodeId))) nameOf(assetId);
+      } else {
+        precollectAssets(child.children);
+      }
+    }
+  };
+
   if (root?.type === 'doc') {
     emitDoc(root, [], new Set());
   } else {
-    walk(root ? root.children : roots, []);
+    const topChildren = root ? root.children : roots;
+    const hasRootAssetsDir = topChildren.some(
+      (child) => child.type === 'dir' && sanitizeSegment(child.name).toLowerCase() === ASSET_DIR.toLowerCase(),
+    );
+    if (hasRootAssetsDir) precollectAssets(topChildren);
+    const reserveAssetsDir = hasRootAssetsDir && files.some((file) => file.kind === 'binary');
+    walk(topChildren, [], reserveAssetsDir ? new Set([ASSET_DIR.toLowerCase()]) : undefined);
   }
 
-  // 图片目录只在真有图片时才建。
-  if (files.some((file) => file.kind === 'binary')) dirs.unshift(ASSET_DIR);
+  // 图片目录只在真有图片时才建；若顶层已有同名目录则在上面已经避让，这里再兜底去重。
+  if (files.some((file) => file.kind === 'binary') && !dirs.some((dir) => dir.toLowerCase() === ASSET_DIR.toLowerCase())) {
+    dirs.unshift(ASSET_DIR);
+  }
 
   const rootName =
     root?.type === 'doc'

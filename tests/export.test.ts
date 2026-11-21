@@ -395,5 +395,28 @@ describe('buildExportPlan', () => {
       const plan = buildExportPlan([node('a', null, { name: 'A' })], 'a', withAssets({ a: '纯文字' }));
       expect(plan.dirs).toEqual([]);
     });
+
+    it('根下已有 assets 目录且存在图片时避免目录冲突与重复', () => {
+      const metas = [
+        dir('assetsDir', null, { name: 'assets' }),
+        node('a', 'assetsDir', { name: '笔记' }),
+      ];
+      const plan = buildExportPlan(metas, null, withAssets({ a: `![图](${ASSET_SCHEME}img1)` }));
+
+      expect(plan.dirs).toEqual(['assets', 'assets (2)']);
+      expect(textOf(plan, 'assets (2)/笔记.md')).toBe('![图](../assets/img1.png)');
+      expect(plan.files.some((file) => file.path === 'assets/img1.png' && file.kind === 'binary')).toBe(true);
+    });
+
+    it('根下已有 assets 目录但无图片时保留原目录名', () => {
+      const metas = [
+        dir('assetsDir', null, { name: 'assets' }),
+        node('a', 'assetsDir', { name: '笔记' }),
+      ];
+      const plan = buildExportPlan(metas, null, withAssets({ a: '无图正文' }));
+
+      expect(plan.dirs).toEqual(['assets']);
+      expect(textOf(plan, 'assets/笔记.md')).toBe('无图正文');
+    });
   });
 });

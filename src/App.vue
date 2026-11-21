@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, watchEffect } from 'vue';
+import { onMounted, ref, watchEffect } from 'vue';
 import DocTree from './components/DocTree.vue';
 import EditorPane from './components/EditorPane.vue';
 import OutlinePane from './components/OutlinePane.vue';
@@ -29,9 +29,9 @@ const saved = (host.dbStorage.getItem(WIDTH_KEY) as { tree?: number; outline?: n
 const treeWidth = ref(saved.tree ?? 240);
 const outlineWidth = ref(saved.outline ?? 220);
 
-watch([treeWidth, outlineWidth], ([tree, outline]) =>
-  host.dbStorage.setItem(WIDTH_KEY, { tree, outline }),
-);
+function persistWidths(): void {
+  host.dbStorage.setItem(WIDTH_KEY, { tree: treeWidth.value, outline: outlineWidth.value });
+}
 
 const dragging = ref<'tree' | 'outline' | null>(null);
 
@@ -55,14 +55,24 @@ function startResize(which: 'tree' | 'outline', event: PointerEvent): void {
     if (which === 'tree') treeWidth.value = next;
     else outlineWidth.value = next;
   };
-  const onUp = () => {
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
     dragging.value = null;
-    handle.releasePointerCapture(event.pointerId);
+    if (handle.hasPointerCapture?.(event.pointerId)) {
+      handle.releasePointerCapture(event.pointerId);
+    }
     handle.removeEventListener('pointermove', onMove);
-    handle.removeEventListener('pointerup', onUp);
+    handle.removeEventListener('pointerup', finish);
+    handle.removeEventListener('pointercancel', finish);
+    handle.removeEventListener('lostpointercapture', finish);
+    persistWidths();
   };
   handle.addEventListener('pointermove', onMove);
-  handle.addEventListener('pointerup', onUp);
+  handle.addEventListener('pointerup', finish);
+  handle.addEventListener('pointercancel', finish);
+  handle.addEventListener('lostpointercapture', finish);
 }
 
 // 主题写到 <html data-theme> 上，CSS 变量据此切换。

@@ -209,9 +209,10 @@ function commitMeta(meta: NodeMeta): boolean {
 /**
  * 重读全部元数据、装树并调和关键词。
  * @param options.keepActive 是否保留当前打开的文档（同步刷新时为 true）。
+ * @param options.skipLoad 启动阶段已刚读过全部元数据时跳过重复拉取。
  */
-async function reload(options: { keepActive?: boolean } = {}): Promise<void> {
-  state.metas = await loadAllMeta();
+async function reload(options: { keepActive?: boolean; skipLoad?: boolean } = {}): Promise<void> {
+  if (!options.skipLoad) state.metas = await loadAllMeta();
 
   const { repaired } = tree.value;
   if (repaired.length) {
@@ -389,7 +390,16 @@ async function createNode(
       return null;
     }
   }
-  if (!commitMeta(meta)) return null;
+  if (!commitMeta(meta)) {
+    if (type === 'doc') {
+      try {
+        removeBody(nodeId);
+      } catch {
+        // 清理孤立正文失败时忽略，主失败原因已由 commitMeta 提示
+      }
+    }
+    return null;
+  }
 
   if (parentId && !state.expanded.includes(parentId)) state.expanded.push(parentId);
   if (options.open ?? type === 'doc') await openNode(nodeId);
@@ -460,6 +470,16 @@ async function deleteNode(nodeId: string): Promise<void> {
   if (!meta) return;
 
   const victims = [meta, ...descendantsOf(state.metas, nodeId)];
+  const gone = new Set(victims.map((v) => v.nodeId));
+  const deletingActive = Boolean(state.activeNodeId && gone.has(state.activeNodeId));
+  if (deletingActive) {
+    // 先清掉防抖定时器和脏标记再 await loadBody，防止自动保存把正在删除的当前文档复活写回库里。
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    state.dirty = false;
+  }
   const assetIds = new Set<string>();
 
   for (const victim of victims) {
@@ -472,11 +492,10 @@ async function deleteNode(nodeId: string): Promise<void> {
     removeMeta(victim.nodeId);
   }
 
-  const gone = new Set(victims.map((v) => v.nodeId));
   state.metas = state.metas.filter((m) => !gone.has(m.nodeId));
   state.expanded = state.expanded.filter((id) => !gone.has(id));
 
-  if (state.activeNodeId && gone.has(state.activeNodeId)) {
+  if (deletingActive) {
     state.dirty = false; // 文档已经删了，别再把内容写回去
     state.activeNodeId = null;
     await openNode(firstDocId());
@@ -867,21 +886,30 @@ async function initialize(): Promise<void> {
 
   state.metas = await loadAllMeta();
   await seedIfEmpty();
-  await reload();
-  host.registerTool?.('search_documents', ({ query, limit }) => {
+  await reload({ skipLoad: true });
+  host.registerTool?.('search_documents', (raw) => {
+    const args = raw && typeof raw === 'object' ? raw : {};
+    const { query, limit } = args as { query?: unknown; limit?: unknown };
     if (typeof query !== 'string' || !query.trim()) throw new Error('请提供搜索词');
     const count = typeof limit === 'number' && Number.isFinite(limit) && limit > 0
       ? Math.min(Math.floor(limit), 20) : 8;
+    const bodyCache = new Map<string, string>();
     return { results: searchDocs(state.metas, query, {
       limit: count,
       bodyOf: (nodeId) => {
         if (nodeId === state.activeNodeId) return state.markdown;
+        const cached = bodyCache.get(nodeId);
+        if (cached !== undefined) return cached;
         const body = host.db.get(bodyId(nodeId));
-        return typeof body?.markdown === 'string' ? body.markdown : '';
+        const markdown = typeof body?.markdown === 'string' ? body.markdown : '';
+        bodyCache.set(nodeId, markdown);
+        return markdown;
       },
     }) };
   });
-  host.registerTool?.('create_document', async ({ title, markdown, parentId }) => {
+  host.registerTool?.('create_document', async (raw) => {
+    const args = raw && typeof raw === 'object' ? raw : {};
+    const { title, markdown, parentId } = args as { title?: unknown; markdown?: unknown; parentId?: unknown };
     if (typeof title !== 'string' || !title.trim() || title.trim().length > 200) throw new Error('标题须为 1 至 200 个字符');
     if (markdown !== undefined && typeof markdown !== 'string') throw new Error('正文须为 Markdown 文本');
     if (parentId !== undefined && (typeof parentId !== 'string' || !state.metas.some((meta) => meta.nodeId === parentId && meta.type === 'dir'))) throw new Error('目标目录不存在');

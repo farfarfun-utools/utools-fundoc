@@ -369,14 +369,19 @@ describe('window.fundoc', () => {
     expect(fs.existsSync(path.join(tempDir, '逃出去.md'))).toBe(false);
   });
 
-  // rootName 来自文档名，洗过一遍；带分隔符时必须拦住，否则整个导出目录会落到用户没选的地方。
-  it('writeFiles 拒绝带分隔符的根目录名', () => {
+  // rootName 来自文档名，洗过一遍；带分隔符或 ./.. 时必须拦住，否则整个导出目录会落到用户没选的地方。
+  it('writeFiles 拒绝带分隔符或 ./.. 的根目录名', () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     const result = bridge.writeFiles(tempDir, `..${path.sep}外面`, [], []);
+    const dotResult = bridge.writeFiles(tempDir, '.', [], [{ path: 'a.md', text: 'x' }]);
+    const dotDotResult = bridge.writeFiles(tempDir, '..', [], [{ path: 'a.md', text: 'x' }]);
     errors.mockRestore();
 
     expect(result.ok).toBe(false);
+    expect(dotResult.ok).toBe(false);
+    expect(dotDotResult.ok).toBe(false);
     expect(fs.existsSync(path.join(tempDir, '..', '外面'))).toBe(false);
+    expect(fs.existsSync(path.join(tempDir, 'a.md'))).toBe(false);
   });
 
   it('writeFiles 失败时返回消息而不是抛出', () => {

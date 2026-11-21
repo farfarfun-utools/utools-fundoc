@@ -150,8 +150,12 @@ const resourceCache = new Map<string, string>();
  * @returns data URL；取不到返回 null。
  */
 async function toDataUrl(url: string): Promise<string | null> {
-  const cached = resourceCache.get(url);
-  if (cached !== undefined) return cached;
+  // blob: URL 是一次性的，切文档就会释放，永久缓存只会不断泄漏内存。
+  const cacheable = !url.startsWith('blob:');
+  if (cacheable) {
+    const cached = resourceCache.get(url);
+    if (cached !== undefined) return cached;
+  }
 
   try {
     const response = await fetchWithin(url, RESOURCE_TIMEOUT, '取图片快照用的资源');
@@ -162,7 +166,7 @@ async function toDataUrl(url: string): Promise<string | null> {
       reader.onerror = () => reject(reader.error ?? new Error('读取失败'));
       reader.readAsDataURL(blob);
     });
-    resourceCache.set(url, dataUrl);
+    if (cacheable) resourceCache.set(url, dataUrl);
     return dataUrl;
   } catch (error) {
     console.warn('[fundoc] 图片快照取不到资源，这张图里它会缺失', url, error);
@@ -224,6 +228,25 @@ async function documentCss(): Promise<string> {
 }
 
 /**
+ * 解析快照里 `<img>` 的地址；无效地址、`data:` 以及 `file:` 本地文件一律跳过。
+ * @param src 图片 src 属性值。
+ * @param baseURI 页面基准地址。
+ * @returns 可安全 fetch 的绝对地址；不可内联时返回 null。
+ */
+export function resolveSnapshotImageUrl(src: string, baseURI: string): string | null {
+  const trimmed = src.trim();
+  if (!trimmed || /^data:/i.test(trimmed)) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed, baseURI);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol === 'file:') return null;
+  return parsed.href;
+}
+
+/**
  * 把克隆体里的图片换成 data URL。
  *
  * 正文里的图是 blob URL（见 lib/asset.ts），而 blob 在 SVG 里属于外部资源，一律加载不到。
@@ -235,8 +258,10 @@ async function inlineImages(root: HTMLElement): Promise<void> {
   await Promise.all(
     images.map(async (image) => {
       const src = image.getAttribute('src');
-      if (!src || src.startsWith('data:')) return;
-      const dataUrl = await toDataUrl(new URL(src, document.baseURI).href);
+      if (!src) return;
+      const target = resolveSnapshotImageUrl(src, document.baseURI);
+      if (!target) return;
+      const dataUrl = await toDataUrl(target);
       // 取不到就留着原地址：SVG 里加载不到的引用只是画不出来，不会让整张图失败。
       if (dataUrl) image.setAttribute('src', dataUrl);
     }),

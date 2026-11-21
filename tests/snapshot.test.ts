@@ -5,7 +5,7 @@
 // 地址要真的被换成 data URL —— 换漏一个，SVG 里就加载不到字体，公式的上下标全是歪的，
 // 而出图本身不会报任何错。
 import { describe, expect, it } from 'vitest';
-import { cssUrlsToInline, inlineCssUrls, pickScale } from '../src/lib/snapshot';
+import { cssUrlsToInline, inlineCssUrls, pickScale, resolveSnapshotImageUrl } from '../src/lib/snapshot';
 
 describe('pickScale', () => {
   it('小图直接给默认的 2 倍', () => {
@@ -127,5 +127,15 @@ describe('inlineCssUrls', () => {
 
   it('没有 url() 的 CSS 原样返回', () => {
     expect(inlineCssUrls('.a{color:red}', base, new Map())).toBe('.a{color:red}');
+  });
+});
+
+describe('resolveSnapshotImageUrl', () => {
+  it('允许 blob: 和 http(s) 地址，拒绝 file: 与非法地址', () => {
+    expect(resolveSnapshotImageUrl('blob:https://app/abc', 'file:///opt/fundoc/index.html')).toBe('blob:https://app/abc');
+    expect(resolveSnapshotImageUrl('data:image/png;base64,AAAA', 'https://app/')).toBeNull();
+    expect(resolveSnapshotImageUrl('file:///etc/passwd', 'https://app/')).toBeNull();
+    expect(resolveSnapshotImageUrl('/etc/passwd', 'file:///opt/fundoc/index.html')).toBeNull();
+    expect(resolveSnapshotImageUrl('http://[::1', 'https://app/')).toBeNull();
   });
 });
