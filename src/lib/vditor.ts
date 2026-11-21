@@ -27,4 +27,13 @@ export function injectVditorStyle(): void {
   link.rel = 'stylesheet';
   link.href = `${vditorBase()}/dist/index.css`;
   document.head.append(link);
+
+  // Vditor 的 addScriptSync 会用 XHR 拉 icons/ant.js 再写进 inline <script>，会被 CSP
+  // `script-src 'self' file:` 拦掉；提前以外链 <script src> 挂好同 id，Vditor 会跳过内联注入。
+  if (!document.getElementById('vditorIconScript')) {
+    const script = document.createElement('script');
+    script.id = 'vditorIconScript';
+    script.src = `${vditorBase()}/dist/js/icons/ant.js`;
+    document.head.append(script);
+  }
 }

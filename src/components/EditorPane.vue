@@ -3,7 +3,7 @@
 //
 // 这里同时充当应用顶栏（面板开关、设置入口都在这条上）—— uTools 的窗口不高，
 // 再单独占一行 42px 不划算。
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Icon from './Icon.vue';
 import { createEditor, type EditorHandle } from '../composables/useEditor';
 import { useDocs } from '../composables/useDocs';
@@ -27,6 +27,7 @@ const {
 } = useDocs();
 
 const hostEl = ref<HTMLElement | null>(null);
+const pathSegments = computed(() => (activePath.value ? activePath.value.split('/') : []));
 let editor: EditorHandle | null = null;
 
 function build(): void {
@@ -167,9 +168,14 @@ function runFromMenu(action: () => void): void {
       />
       <span v-else class="doc-title">落笔成章</span>
 
-      <span v-if="activePath" class="doc-path" :title="activePath">{{ activePath }}</span>
+      <span v-if="pathSegments.length" class="doc-path" :title="activePath" aria-label="文档路径">
+        <template v-for="(seg, index) in pathSegments" :key="`${index}-${seg}`">
+          <span v-if="index > 0" class="doc-path-sep" aria-hidden="true">/</span>
+          <span class="doc-path-seg" :class="{ current: index === pathSegments.length - 1 }">{{ seg }}</span>
+        </template>
+      </span>
 
-      <span class="doc-state">
+      <span class="doc-state" :class="{ empty: !activeMeta, dirty: state.dirty }">
         <template v-if="!activeMeta">&nbsp;</template>
         <template v-else-if="state.dirty">未保存</template>
         <template v-else>{{ sizeLabel(activeMeta.bodySize) || '已保存' }}</template>
