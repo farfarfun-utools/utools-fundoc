@@ -151,6 +151,10 @@ const state = reactive<State>({
 
 /** 正文已经变化但还没落盘时的定时器。 */
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+/** 提示条自动消失定时器，连续提示时替换旧定时器避免提前关掉新提示。 */
+let noticeTimer: ReturnType<typeof setTimeout> | null = null;
+/** 打开文档请求序号，防止快速切换时慢速 loadBody 回写覆盖后打开的文档。 */
+let openToken = 0;
 /** 外部请求打开某篇文档（来自 onPluginEnter 的关键词跳转）。 */
 const pendingOpen = ref<string | null>(null);
 
@@ -173,8 +177,17 @@ const activePath = computed(() =>
 );
 
 function notify(message: string): void {
+  if (noticeTimer) {
+    clearTimeout(noticeTimer);
+    noticeTimer = null;
+  }
   state.notice = message;
-  if (message) setTimeout(() => void (state.notice === message && (state.notice = '')), 4000);
+  if (message) {
+    noticeTimer = setTimeout(() => {
+      noticeTimer = null;
+      if (state.notice === message) state.notice = '';
+    }, 4000);
+  }
 }
 
 /**
@@ -289,9 +302,12 @@ async function openNode(nodeId: string | null): Promise<void> {
   // blob URL 是按 assetId 缓存的，换文档时统一回收，否则长时间使用会攒一堆。
   releaseAssetUrls();
 
+  const token = ++openToken;
   state.conflict = null;
   state.activeNodeId = nodeId;
-  setMarkdownExternal(nodeId ? await loadBody(nodeId) : '');
+  const markdown = nodeId ? await loadBody(nodeId) : '';
+  if (token !== openToken || state.activeNodeId !== nodeId) return;
+  setMarkdownExternal(markdown);
 }
 
 /**

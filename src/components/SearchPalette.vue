@@ -24,6 +24,12 @@ async function moveAndReveal(delta: number): Promise<void> {
   await nextTick();
   listEl.value?.querySelector('.sp-item.active')?.scrollIntoView({ block: 'nearest' });
 }
+
+function onEnter(event: KeyboardEvent): void {
+  if (event.isComposing) return;
+  event.preventDefault();
+  void choose();
+}
 </script>
 
 <template>
@@ -39,7 +45,7 @@ async function moveAndReveal(delta: number): Promise<void> {
           spellcheck="false"
           @keydown.down.prevent="moveAndReveal(1)"
           @keydown.up.prevent="moveAndReveal(-1)"
-          @keydown.enter.prevent="choose()"
+          @keydown.enter="onEnter"
         />
         <kbd class="sp-hint">Esc</kbd>
       </div>

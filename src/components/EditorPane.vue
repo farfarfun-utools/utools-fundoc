@@ -39,8 +39,24 @@ function build(): void {
   });
 }
 
-onMounted(build);
+function onTitleEnter(event: KeyboardEvent): void {
+  if (event.isComposing) return;
+  (event.target as HTMLInputElement).blur();
+}
+
+function onGlobalKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && downloadMenu.value) {
+    event.preventDefault();
+    downloadMenu.value = null;
+  }
+}
+
+onMounted(() => {
+  build();
+  globalThis.addEventListener('keydown', onGlobalKeydown);
+});
 onBeforeUnmount(() => {
+  globalThis.removeEventListener('keydown', onGlobalKeydown);
   flush();
   editor?.destroy();
   editor = null;
@@ -164,7 +180,7 @@ function runFromMenu(action: () => void): void {
         :value="activeMeta.name"
         placeholder="未命名文档"
         @change="commitTitle"
-        @keydown.enter="($event.target as HTMLInputElement).blur()"
+        @keydown.enter="onTitleEnter"
       />
       <span v-else class="doc-title">落笔成章</span>
 

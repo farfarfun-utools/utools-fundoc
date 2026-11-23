@@ -547,6 +547,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   margin: 0 auto;
   padding: 24px 32px 48px;
 }
+/* 分屏预览顶部视口切换条在 800px 窗口下宽度有限，禁止换行避免末项「知」掉到第二行。 */
+:root .vditor-preview__action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+}
+:root .vditor-preview__action::-webkit-scrollbar { display: none; }
 
 /* 另外 9 处 Google 蓝是写死在 index.css 里的，没有变量可接，只能逐个点掉。 */
 :root .vditor-tip__content a,
@@ -720,9 +732,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: var(--surface);
   box-shadow: var(--dialog-shadow);
 }
-.dialog-head { flex: 0 0 auto; padding: 16px 18px 0; color: var(--text-strong); font-size: 15px; font-weight: 600; }
+.dialog-head { flex: 0 0 auto; padding: 14px 18px 12px; border-bottom: 1px solid var(--border); color: var(--text-strong); font-size: 15px; font-weight: 600; }
 .dialog-body { min-height: 0; flex: 1; overflow: auto; padding: 14px 18px; }
-.dialog-foot { flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 8px; padding: 0 18px 16px; }
+.dialog-foot { flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 14px; border-top: 1px solid var(--border); }
 
 .field { margin-bottom: 14px; }
 .field:last-child { margin-bottom: 0; }

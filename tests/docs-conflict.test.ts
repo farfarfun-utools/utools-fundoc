@@ -1,4 +1,4 @@
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { useDocs } from '../src/composables/useDocs';
 import { assetDocId, storeAsset } from '../src/lib/asset';
 import { host } from '../src/lib/host';
@@ -100,5 +100,53 @@ it('新建文档写入元数据失败时会清理已写入的孤立正文', asyn
     expect(host.db.allDocs('body@').some((doc) => doc.markdown === '孤立正文')).toBe(false);
   } finally {
     host.db.put = originalPut;
+  }
+});
+
+it('快速连续切换文档时，先发起但后返回的 loadBody 不会覆盖后打开的文档正文', async () => {
+  docs.state.conflict = null;
+  docs.state.dirty = false;
+  saveBody('docA', '文档 A 的正文');
+  saveBody('docB', '文档 B 的正文');
+
+  let resolveA!: (doc: DbDoc | null) => void;
+  const originalGet = host.db.promises.get;
+  host.db.promises.get = (id: string) => {
+    if (id === 'body@docA') {
+      return new Promise((resolve) => {
+        resolveA = resolve;
+      });
+    }
+    return originalGet(id);
+  };
+
+  try {
+    const openingA = docs.openNode('docA');
+    const openingB = docs.openNode('docB');
+    await openingB;
+    expect(docs.state.activeNodeId).toBe('docB');
+    expect(docs.state.markdown).toBe('文档 B 的正文');
+
+    resolveA({ _id: 'body@docA', markdown: '文档 A 的正文' });
+    await openingA;
+    expect(docs.state.activeNodeId).toBe('docB');
+    expect(docs.state.markdown).toBe('文档 B 的正文');
+  } finally {
+    host.db.promises.get = originalGet;
+  }
+});
+
+it('连续触发相同提示文案时会重置自动消失定时器，不被旧定时器提前清空', () => {
+  vi.useFakeTimers();
+  try {
+    docs.notify('没有需要清理的图片');
+    vi.advanceTimersByTime(3000);
+    docs.notify('没有需要清理的图片');
+    vi.advanceTimersByTime(2000);
+    expect(docs.state.notice).toBe('没有需要清理的图片');
+    vi.advanceTimersByTime(2100);
+    expect(docs.state.notice).toBe('');
+  } finally {
+    vi.useRealTimers();
   }
 });

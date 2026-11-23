@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useDocs } from '../composables/useDocs';
 import { CODE_THEMES, MODE_LABELS } from '../composables/useEditor';
 import { formatKeys, SHORTCUTS } from '../composables/useShortcuts';
@@ -32,12 +32,22 @@ async function clean(): Promise<void> {
     cleaning.value = false;
   }
 }
+
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    emit('close');
+  }
+}
+
+onMounted(() => globalThis.addEventListener('keydown', onKeydown));
+onBeforeUnmount(() => globalThis.removeEventListener('keydown', onKeydown));
 </script>
 
 <template>
   <div class="mask" @click.self="emit('close')">
-    <div class="dialog">
-      <div class="dialog-head">设置</div>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="settings-dialog-title">
+      <div id="settings-dialog-title" class="dialog-head">设置</div>
 
       <div class="dialog-body">
         <div class="field">
@@ -77,6 +87,9 @@ async function clean(): Promise<void> {
           <label class="field-label">
             <span>用正文首个标题作为文档名</span>
             <button
+              type="button"
+              role="switch"
+              :aria-checked="state.settings.syncTitleFromHeading"
               class="switch"
               :class="{ on: state.settings.syncTitleFromHeading }"
               @click="state.settings.syncTitleFromHeading = !state.settings.syncTitleFromHeading"
@@ -91,6 +104,9 @@ async function clean(): Promise<void> {
           <label class="field-label">
             <span>标题自动编号</span>
             <button
+              type="button"
+              role="switch"
+              :aria-checked="state.settings.headingNumber"
               class="switch"
               :class="{ on: state.settings.headingNumber }"
               @click="state.settings.headingNumber = !state.settings.headingNumber"

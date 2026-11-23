@@ -4,7 +4,7 @@
 // 树被**拍平成可见行列表**再渲染，而不是用递归组件。理由是拖拽：落点要在
 // 「插到某行之前 / 之后 / 放进某个目录里」三者间判定，一维列表上算起来干净得多，
 // 递归组件还得层层转发 drag 事件。
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import Icon from './Icon.vue';
 import { useDocs } from '../composables/useDocs';
 import { useSearch } from '../composables/useSearch';
@@ -61,18 +61,34 @@ function commitRename(): void {
   renamingId.value = null;
 }
 
+function onRenameEnter(event: KeyboardEvent): void {
+  if (event.isComposing) return;
+  event.preventDefault();
+  commitRename();
+}
+
 // ── 右键菜单 ──
 type Menu = { x: number; y: number; node: TreeNode | null };
 const menu = ref<Menu | null>(null);
 
 function openMenu(event: MouseEvent, node: TreeNode | null): void {
-  // 菜单宽 152、最多 6 项加两条分隔线约 200 高，靠近右/下边缘时往回收，别画到窗口外面。
+  // 菜单宽 158、最多 6 项加两条分隔线约 210 高，靠近右/下边缘时往回收，且保留最小 8px 边距。
   menu.value = {
-    x: Math.min(event.clientX, window.innerWidth - 164),
-    y: Math.min(event.clientY, window.innerHeight - 210),
+    x: Math.max(8, Math.min(event.clientX, window.innerWidth - 168)),
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 216)),
     node,
   };
 }
+
+function onGlobalKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && menu.value) {
+    event.preventDefault();
+    menu.value = null;
+  }
+}
+
+onMounted(() => globalThis.addEventListener('keydown', onGlobalKeydown));
+onBeforeUnmount(() => globalThis.removeEventListener('keydown', onGlobalKeydown));
 
 async function menuCreate(type: NodeType): Promise<void> {
   const node = menu.value?.node ?? null;
@@ -121,6 +137,12 @@ function onDragOver(event: DragEvent, node: TreeNode): void {
   event.preventDefault();
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
   dropTarget.value = { nodeId: node.nodeId, zone: zoneAt(event, node) };
+}
+
+function onDragLeave(event: DragEvent, node: TreeNode): void {
+  const row = event.currentTarget as HTMLElement | null;
+  if (row && event.relatedTarget instanceof Node && row.contains(event.relatedTarget)) return;
+  if (dropTarget.value?.nodeId === node.nodeId) dropTarget.value = null;
 }
 
 function onDrop(event: DragEvent, node: TreeNode): void {
@@ -209,7 +231,7 @@ async function activate(node: TreeNode): Promise<void> {
         @dragstart="dragId = node.nodeId"
         @dragend="((dragId = null), (dropTarget = null))"
         @dragover="onDragOver($event, node)"
-        @dragleave="dropTarget = null"
+        @dragleave="onDragLeave($event, node)"
         @drop="onDrop($event, node)"
       >
         <span
@@ -239,8 +261,8 @@ async function activate(node: TreeNode): Promise<void> {
           class="tree-rename"
           @click.stop
           @blur="commitRename"
-          @keydown.enter.prevent="commitRename"
-          @keydown.esc.prevent="renamingId = null"
+          @keydown.enter="onRenameEnter"
+          @keydown.esc.stop.prevent="renamingId = null"
         />
         <span v-else class="tree-name" :title="node.name">{{ node.name }}</span>
 

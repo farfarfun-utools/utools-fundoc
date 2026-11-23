@@ -8,7 +8,7 @@
 //
 // 第三条是最容易让用户困惑的，所以界面上实时把「最终生效的关键词」显示出来，
 // 而不是让用户自己推断。
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import Icon from './Icon.vue';
 import { useDocs } from '../composables/useDocs';
 import { keywordsOf } from '../lib/keyword';
@@ -25,10 +25,19 @@ const words = ref<string[]>([...(meta.value?.keywords ?? [])]);
 const draft = ref('');
 const inputEl = ref<HTMLInputElement | null>(null);
 
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    emit('close');
+  }
+}
+
 onMounted(async () => {
+  globalThis.addEventListener('keydown', onKeydown);
   await nextTick();
   if (enabled.value) inputEl.value?.focus();
 });
+onBeforeUnmount(() => globalThis.removeEventListener('keydown', onKeydown));
 
 /** 当前设置下实际会注册的关键词，直接复用线上那套规则，避免界面和行为说两套话。 */
 const effective = computed(() =>
@@ -50,6 +59,12 @@ function backspace(): void {
   words.value.pop();
 }
 
+function onTagEnter(event: KeyboardEvent): void {
+  if (event.isComposing) return;
+  event.preventDefault();
+  addWord();
+}
+
 function save(): void {
   if (!meta.value) return;
   // 没来得及按回车的半截输入也算数，否则用户填完直接点保存会丢词。
@@ -62,14 +77,14 @@ function save(): void {
 
 <template>
   <div class="mask" @click.self="emit('close')">
-    <div class="dialog">
-      <div class="dialog-head">关键词设置</div>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="keyword-dialog-title">
+      <div id="keyword-dialog-title" class="dialog-head">关键词设置</div>
 
       <div class="dialog-body">
         <div class="field">
           <label class="field-label">
             <span>注册为 uTools 全局关键词</span>
-            <button class="switch" :class="{ on: enabled }" @click="enabled = !enabled" />
+            <button type="button" role="switch" :aria-checked="enabled" class="switch" :class="{ on: enabled }" @click="enabled = !enabled" />
           </label>
           <p class="field-hint">
             打开后，在 uTools 主搜索框输入关键词就能直接跳到这篇文档。
@@ -89,7 +104,7 @@ function save(): void {
               ref="inputEl"
               v-model="draft"
               :placeholder="words.length ? '继续添加' : '留空则用标题'"
-              @keydown.enter.prevent="addWord"
+              @keydown.enter="onTagEnter"
               @keydown.,.prevent="addWord"
               @keydown.delete="backspace"
               @blur="addWord"
