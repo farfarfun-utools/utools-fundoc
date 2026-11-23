@@ -42,5 +42,17 @@
     "pnpm": ">=12"
   },
   "description": "落笔成章 FunDoc：本地 Markdown 文档管理，支持 LaTeX 公式、多级目录与跨设备同步",
+  "keywords": [
+    "utools",
+    "utools-plugin",
+    "fundoc",
+    "markdown",
+    "notes",
+    "katex",
+    "vditor",
+    "vue3",
+    "typescript",
+    "farfarfun"
+  ],
   "homepage": "https://farfarfun.github.io/packages/utools-fundoc/"
 }
